@@ -44,6 +44,7 @@ void Ui2D::begin(u32 w, u32 h) {
     cmds.reset();
     triangles = 0; draw_calls = 0;
     verts_quads = verts_used = 0;
+    indices_ok = true;
     clip_depth = 0;
     clip_rect = Rect{ 0, 0, (f32)w, (f32)h };
     cmd_tex = nullptr;
@@ -461,22 +462,24 @@ void Ui2D::image(ID3D11ShaderResourceView* srv, f32 x, f32 y, f32 w, f32 h, Col 
 }
 
 bool Ui2D::verts_consistent() const {
-    // Every call site asks for exactly one index per vertex, so the index
-    // count and the vertex count must be equal. The 1.0.3 code advanced the
-    // index cursor by n*3 (three indices per vertex) and emitted them in that
-    // pattern; this single comparison catches that class of mistake, and the
-    // value check below catches any other layout drift.
-    if (verts_used != verts_quads * 6) return false;
-    if (icount != verts_used) return false;
-    if (!ibase) return true;
-    for (u32 i = 0; i < icount; ++i) if (ibase[i] != (u16)i) return false;
-    return true;
+    // One index per vertex, the counters in agreement, and the pattern that
+    // Ui2D::end() verified while the buffer was mapped. The 1.0.3 code advanced
+    // the index cursor by n*3 and wrote first+i*3+k: this catches that and any
+    // other drift, from the log rather than from the user's screen.
+    return indices_ok && icount == verts_used && verts_used == verts_quads * 6;
 }
 
 // -------------------------------------------------------------------- flush
 void Ui2D::end() {
     flush_cmd();
-    if (!vbase) return;
+    if (!vbase) { indices_ok = false; return; }
+    // The index pattern can only be inspected while the buffer is mapped, so it
+    // is verified here and cached. A quad is 6 vertices drawn as 0,1,2 + 3,4,5,
+    // so the index buffer must hold exactly 0,1,2,3,...
+    indices_ok = true;
+    for (u32 i = 0; i < icount; ++i) {
+        if (ibase[i] != (u16)i) { indices_ok = false; break; }
+    }
     gfx->ctx->Unmap(gfx->vb, 0);
     gfx->ctx->Unmap(gfx->ib, 0);
     vbase = nullptr; ibase = nullptr;

@@ -625,6 +625,22 @@ bool App::tick(Window& win_) {
     // ---- draw
     draw(dt);
 
+    // ---- input edges last exactly one frame
+    //
+    // UiInput::new_frame() clears pressed/released/wheel/double_click and the
+    // per-frame keyboard/typing edges. It existed from the first version but was
+    // never called, so after the first click:
+    //   * pressed[left] stayed true for the rest of the session - every hovered
+    //     control took the "pressed" branch (buttons activated on mouse-over,
+    //     toggles flipped on every frame the pointer rested on them);
+    //   * released[left] stayed true as well, so the click fired immediately;
+    //   * wheel accumulated without bound (any scroll jumped to the end);
+    //   * typed characters were re-delivered and key_backspace deleted one
+    //     character per frame.
+    // Everything that reads input does so inside draw(), so the edges are
+    // cleared once the frame is finished.
+    w.in.new_frame();
+
     if (settings_dirty && now - settings_saved_at_us > 700000ull) {
         if (paths) settings.save(paths->config_file);
         settings_dirty = false;

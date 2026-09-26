@@ -61,6 +61,7 @@ struct Ui2D {
     bool     cmd_shape = true;
     bool     cmd_linear = true;
     bool     cmd_coverage = false;   // bound texture is a coverage (R8) atlas
+    bool     indices_ok = true;      // index buffer verified as 0,1,2,... on submit
     Rect     clip_rect{ 0, 0, 0, 0 };
     Rect     clip_stack[8];
     u32      clip_depth = 0;
@@ -134,6 +135,12 @@ struct Ui2D {
     // Checked by the app on the first frame and reported in the log.
     u32  verts_quads = 0;        // quads emitted through verts()
     u32  verts_used  = 0;        // vertex slots they reserved
+    // True when the index buffer of the frame just submitted holds exactly
+    // 0,1,2,3,... and the counters agree. Verified while the buffer is still
+    // mapped (see Ui2D::end) and cached for the caller.
+    // True when the frame just submitted used one index per vertex (index
+    // buffer reads 0,1,2,3,...) and the counters agree. The pattern is checked
+    // while the buffer is still mapped, in Ui2D::end(), and cached here.
     bool verts_consistent() const;
 
 private:

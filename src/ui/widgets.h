@@ -106,7 +106,6 @@ struct WidgetCtx {
 
     void init(Arena* a, Ui2D* ui, Theme* theme);
     void begin_frame(f32 dt, u64 time_us);
-    void end_frame();
     bool is_hot(u32 id) const { return hot == id; }
     bool is_active(u32 id) const { return active == id; }
     // Eased value used for every hover/selection/size transition.

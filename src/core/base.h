@@ -43,7 +43,7 @@ typedef intptr_t  isize;
 #define MOB_VERSION_MAJOR 1
 #define MOB_VERSION_MINOR 0
 #define MOB_VERSION_PATCH 0
-#define MOB_VERSION_STR   "1.0.4"
+#define MOB_VERSION_STR   "1.0.5"
 // Build stamp shown in SOBRE / DIAGNOSTICS. The build script injects the exact
 // time of the build (-DMOB_BUILD_STR=...) so a support report identifies the
 // binary without using __DATE__/__TIME__, which would make the build

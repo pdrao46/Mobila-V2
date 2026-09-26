@@ -3,16 +3,16 @@
 O instalador **não** fica no código-fonte — ele é um artefacto binário construído pelo
 pipeline deste repositório. Está publicado aqui mesmo, nesta pasta:
 
-## ➡️ [`release/Mobilador-Setup-1.0.4.exe`](release/Mobilador-Setup-1.0.4.exe) — 41,9 MB
+## ➡️ [`release/Mobilador-Setup-1.0.5.exe`](release/Mobilador-Setup-1.0.5.exe) — 41,9 MB
 
 Clique no link acima **e depois no botão de download** que aparece no canto direito da
 página (ícone ⬇ *Download* / *Download raw file*).
 
 | | |
 |---|---|
-| **Ficheiro** | `Mobilador-Setup-1.0.4.exe` |
+| **Ficheiro** | `Mobilador-Setup-1.0.5.exe` |
 | **Tamanho** | 43 905 841 bytes (41,9 MB) |
-| **SHA-256** | `27d3e970180e2060f6e9f6d6aa2b7b42abb72626b01f1be4022d8a5a4f67d5e2` |
+| **SHA-256** | `f2f57c279bc9db0e8da0c3a051595b496a6e5e04f2739fe820044e83b960c989` |
 | **Sistema** | Windows 10/11, 64 bits |
 | **Requisitos** | nenhum — sem Java, sem Visual C++, sem Android SDK, sem administrador |
 
@@ -23,20 +23,25 @@ página (ícone ⬇ *Download* / *Download raw file*).
 > automático (`tools/installer/test_payload.cpp`, roda em Linux) e o
 > instalador ainda tenta pastas alternativas se a padrão falhar.
 
-> **Versão 1.0.4** — corrige a geometria do quadro. O gerador de índices
-> avançava o cursor **três** posições por vértice e escrevia `first+i*3+k`:
-> cada quadrado (6 vértices) recebia 18 índices, ou seja desenhava **seis**
-> triângulos em vez de dois, e quatro deles referenciavam vértices de *outros*
-> elementos. Dentro do mesmo lote isso duplicava os glifos seguintes (texto mais
-> escuro/grosso); na fronteira entre lotes, o lote anterior desenhava triângulos
-> com a geometria do lote seguinte e com o *seu* shader — retângulos sólidos
-> escuros por cima das primeiras letras e riscos pela tela. Um quadrado é
-> `0,1,2 + 3,4,5`; agora é exatamente isso: um índice por vértice.
+> **Versão 1.0.5** — corrige os controles: **botões disparavam ao passar o
+> mouse**. `UiInput::new_frame()`, que limpa `pressed`/`released`/`wheel` e as
+> teclas de cada frame, existia desde a primeira versão mas **nunca era
+> chamada**. Depois do primeiro clique, `pressed[left]` ficava `true` para o
+> resto da sessão: todo controle sob o cursor entrava em estado "pressionado",
+> os botões agiam sem clique, os interruptores ligavam/desligavam sozinhos
+> enquanto o ponteiro estava em cima, a roda acumulava sem limite e as teclas
+> (apagar, escape) repetiam a cada frame. Os flags agora são limpos no fim de
+> cada frame, depois de a interface os consumir.
 >
-> O aplicativo também passou a **verificar-se**: no primeiro quadro confere que
-> `icount == verts_used` e que os índices são `0,1,2,3,...`, e escreve no log
-> `ui: geometry ok (N quads, M verts, pattern 0..n-1)` — ou um erro explícito se
-> o padrão voltar a quebrar.
+> Também nesta versão: `WidgetCtx::end_frame()` (declarada, nunca definida nem
+> chamada) removida; `tools/run_tests.sh` tinha o bloco de verificações
+> duplicado, rodando tudo duas vezes.
+>
+> Novidade que fica: **`tools/check_ui_invariants.py`** roda em `tools/run_tests.sh`
+> e falha se algum destes erros voltar — input sem limpeza por frame, índices 3×
+> por vértice, atlas de glifos `DYNAMIC` com `UpdateSubresource`, `ps_text`
+> ausente, ou o instalador reutilizando um executável antigo. Cada verificação foi
+> testada por sabotagem: reintroduzindo o erro, ela falha.
 
 ## Como instalar
 
@@ -46,7 +51,7 @@ página (ícone ⬇ *Download* / *Download raw file*).
 3. Clique em **INSTALAR**.
 4. Abra o **Mobilador** e ligue a **Depuração USB** no telemóvel.
 
-> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.4.exe --portable [pasta]`
+> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.5.exe --portable [pasta]`
 
 ## Guias
 

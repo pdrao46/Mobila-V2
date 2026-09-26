@@ -4,7 +4,7 @@
 #
 #  Builds the one executable the user runs:
 #
-#      release/Mobilador-Setup-1.0.4.exe
+#      release/Mobilador-Setup-1.0.5.exe
 #
 #  Steps
 #    1. dist/Mobilador.exe            (the application, from tools/build.py)
@@ -39,7 +39,7 @@ DEX = os.path.join(ROOT, "dist", "server", "mobilador.dex")
 ANDROID_JAR = os.path.join(TOOLS, "android-stubs", "android-33.jar")
 D8_JAR = os.path.join(TOOLS, "d8.jar")
 PLATFORM = os.path.join(TOOLS, "platform-tools")
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 
 def run(cmd, **kw):
