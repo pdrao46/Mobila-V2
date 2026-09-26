@@ -625,6 +625,24 @@ bool App::tick(Window& win_) {
     // ---- draw
     draw(dt);
 
+    // ---- deferred UI scale -------------------------------------------------
+    // Applied here, after draw() has submitted every command, so no pending
+    // draw references the atlas textures that set_scale() releases. Doing this
+    // from the settings screen (as 1.0.5 did) meant: slider moves -> textures
+    // released - while the frame being drawn still pointed at them ->
+    // PSSetShaderResources with a dead pointer -> device removed -> the window
+    // closed with no message.
+    if (pending_ui_scale > 0.0f) {
+        const f32 s = pending_ui_scale;
+        pending_ui_scale = 0.0f;
+        if (text.set_scale(s)) {
+            ui.set_dpi(s);
+            MOB_INFO("ui: escala da interface aplicada (%.2fx)", s);
+        } else {
+            MOB_ERROR("ui: falha ao reconstruir o atlas em %.2fx; a escala anterior segue ativa", s);
+        }
+    }
+
     // ---- input edges last exactly one frame
     //
     // UiInput::new_frame() clears pressed/released/wheel/double_click and the
@@ -812,6 +830,11 @@ void App::draw_video_surface(Rect area) {
 // full screen), into Documentos\Mobilador. The on-screen flash is the only
 // confirmation that is not a file system message.
 // ---------------------------------------------------------------------------
+void App::request_ui_scale(f32 scale) {
+    if (scale <= 0.1f) return;
+    pending_ui_scale = scale;
+}
+
 void App::take_screenshot() {
     Arena a; a.init(1 << 16);
     Str dir = documents_dir(&a);

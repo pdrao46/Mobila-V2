@@ -154,6 +154,10 @@ void status_dot(WidgetCtx* c, f32 cx, f32 cy, Col color, bool pulse);
 void badge(WidgetCtx* c, Str text, f32 x, f32 y, Col color);
 void meter_row(WidgetCtx* c, Str label, f32 t, Str value_text, Rect r, Col fill);
 void stat_tile(WidgetCtx* c, Str label, Str value, Str unit, Rect r, IconId icon, Col value_color);
+// Height one stat_tile() needs for its content at the current scale. Callers must
+// size the rect with this instead of a hardcoded number: FONT_DISPLAY is 40 px,
+// so a fixed 70 px tile cut the bottom off every big number.
+f32 stat_tile_height(WidgetCtx* c);
 void graph(WidgetCtx* c, const f32* samples, u32 count, u32 head, Rect r, Col line, f32 min, f32 max,
            const char* y_label = nullptr, bool fill_area = true);
 void progress_ring(WidgetCtx* c, f32 cx, f32 cy, f32 radius, f32 t, Col color, f32 thickness = 3.0f);

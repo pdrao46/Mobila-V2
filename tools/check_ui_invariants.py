@@ -13,6 +13,10 @@
 #    3. the glyph atlas must be USAGE_DEFAULT, not DYNAMIC (1.0.3 bug)
 #    4. coverage textures must use ps_text, not ps_ui      (1.0.2 bug)
 #    5. no silently-skipped rebuilds: build_app must call build.py
+#    6. the UI scale is applied at the frame boundary            (1.0.5 crash)
+#    7. adb.exe ships where find_adb() looks                    (1.0.0-1.0.5 bug)
+#    8. the dashboard tile grid is three columns wide            (layout bug)
+#    9. no duplicated unit suffix in format strings
 #
 #  Run: python3 tools/check_ui_invariants.py      (also run by tools/run_tests.sh)
 # ============================================================================
@@ -146,6 +150,63 @@ if ba:
           "reusing the existing binary packaged 1.0.2 inside the 1.0.3 installer")
 else:
     check("build_app() found", False)
+
+
+# ---------------------------------------------------------------------------
+# 6. the UI scale must be applied at the frame boundary, never mid-frame
+# ---------------------------------------------------------------------------
+settings = strip_comments(read("src/ui/app_settings_screens.cpp"))
+check("the settings screen defers the UI scale change",
+      "request_ui_scale" in settings and "text.set_scale" not in settings,
+      "calling set_scale() while drawing frees the atlas textures the current "
+      "frame still references: the app closed with no message when the slider moved")
+check("App::tick applies the pending scale after draw()",
+      "pending_ui_scale" in app and app.find("pending_ui_scale > 0.0f") > app.find("draw(dt)"),
+      "the rebuild has to happen once the frame has been submitted")
+
+text_src = read("src/render/text.cpp")
+check("the font rebuild reuses its device context",
+      "HDC dc = (HDC)f.dc;" in text_src,
+      "creating a DC per rebuild leaked nine of them on every scale change")
+
+# ---------------------------------------------------------------------------
+# 7. adb.exe has to be found where it is installed
+# ---------------------------------------------------------------------------
+win = strip_comments(read("src/platform/win.cpp"))
+check("find_adb() looks next to the executable",
+      re.search(r"resolve_adb_in\s*\(\s*g_paths\.exe_dir", win) is not None,
+      "the installer puts adb.exe in the installation root; searching only "
+      "<exe>\\tools produced 'adb.exe not found' on every clean install")
+check("find_adb() still looks in tools/",
+      re.search(r"resolve_adb_in\s*\(\s*g_paths\.tools_dir", win) is not None)
+bi_src = read("tools/installer/build_installer.py")
+m = re.search(r'for f in \("adb\.exe", "AdbWinApi\.dll", "AdbWinUsbApi\.dll"\):\s*\n(.*?)\n', bi_src, re.S)
+check("the installer ships adb.exe under tools/",
+      m is not None and '"tools/" + f' in m.group(1),
+      "payload layout and find_adb() have to agree, or the app cannot reach a phone")
+
+# ---------------------------------------------------------------------------
+# 8. the dashboard tiles are a three-column grid sized from the real metrics
+# ---------------------------------------------------------------------------
+screens = strip_comments(read("src/ui/app_screens.cpp"))
+check("the dashboard uses three tile columns",
+      re.search(r"\(r\.w - tile_gap \* 2\.0f\) / 3\.0f", screens) is not None
+      and "half * 1.5f" not in screens,
+      "reusing the two-column geometry for three columns pushed two of every "
+      "three tiles off the right edge of the window")
+check("the tile height comes from the font metrics",
+      "stat_tile_height(&w)" in screens,
+      "a fixed 70 px tile cut 24 px off the bottom of FONT_DISPLAY numbers")
+check("stat_tile bottom-aligns its value",
+      "r.b() - pad - value_lh" in read("src/ui/widgets.cpp"))
+
+# ---------------------------------------------------------------------------
+# 9. format strings must not carry a duplicated unit suffix
+# ---------------------------------------------------------------------------
+for rel in ("src/ui/app_screens.cpp", "src/ui/app_settings_screens.cpp"):
+    bad = [ln for ln in read(rel).splitlines() if 'x x"' in ln or "x x\\n" in ln]
+    check("no duplicated unit in format strings (%s)" % os.path.basename(rel),
+          not bad, "e.g. \"%.2fx x\" printed \"1.00x x\"")
 
 print()
 if FAILED:

@@ -157,10 +157,17 @@ struct App {
     f32   photo_flash = 0;
     bool  screenshot_pending = false;
     bool  ui_invariant_reported = false;   // the vertex/index check logs once
+    f32   pending_ui_scale = 0.0f;         // applied after the frame is submitted
     char  screenshot_msg[256] = "";
     // Captures the frame that is about to be presented and writes it next to the
     // other artefacts (Documentos\Mobilador).
     void take_screenshot();
+    // Asks for a new UI scale. The change is applied at the frame boundary
+    // (see App::tick), never from inside the widget code that draws the slider:
+    // rebuilding the glyph atlases releases the textures the already-recorded
+    // draw commands point at, and submitting a released SRV takes the device
+    // down - which is exactly how the app used to die when the slider moved.
+    void request_ui_scale(f32 scale);
 
     // ---- lifecycle ---------------------------------------------------------
     bool pre_init(AppPaths* paths_);

@@ -270,14 +270,24 @@ void App::draw_dashboard(Rect r) {
         { "GPU",         Str(v5), "%",   ICON_GPU,        theme.text },
         { "CPU",         Str(v6), "%",   ICON_CPU,        theme.text },
     };
+    // Six tiles, three per row. This used to use the two-column geometry
+    // (half * 1.5 wide, half * 1.5 + gap/2 pitch) for three columns: the first
+    // tile took 74% of the row, the second ran past the right edge of the
+    // window and the third was never on screen at all - FPS STREAM and GPU
+    // appeared sliced down the middle and FPS DISPLAY and CPU did not exist.
+    const f32 tile_gap = SP(10);
+    const f32 tile_w = (r.w - tile_gap * 2.0f) / 3.0f;
+    const f32 tile_h = stat_tile_height(&w);
+    const f32 tiles_top = r.y + SP(112) + gap;
     for (u32 i = 0; i < 6; ++i) {
         u32 col = i % 3, row = i / 3;
-        Rect t{ r.x + (f32)col * (half * 1.5f + gap * 0.5f), r.y + SP(112) + gap + SP(78) * (f32)row, half * 1.5f, SP(70) };
+        Rect t{ r.x + (f32)col * (tile_w + tile_gap),
+                tiles_top + (tile_h + tile_gap) * (f32)row, tile_w, tile_h };
         stat_tile(&w, Str(tiles[i].label), tiles[i].val, Str(tiles[i].unit), t, tiles[i].icon, tiles[i].c);
     }
 
     // ---- device information + pipeline
-    f32 ly = r.y + SP(112) + gap + SP(164);
+    f32 ly = tiles_top + tile_h * 2.0f + tile_gap + gap;
     Rect dc{ r.x, ly, half, SP(212) };
     card(&w, dc);
     section_header(&w, "CELULAR", Rect{ dc.x + SP(16), dc.y + SP(10), dc.w - SP(32), SP(26) }, ICON_PHONE);
@@ -570,7 +580,7 @@ void App::draw_performance(Rect r) {
             Rect rr = row_rect();
             ui.text("Sensibilidade do mouse", rr.x, rr.cy() - ui.line_h(FONT_LABEL) * 0.5f, FONT_LABEL, theme.text);
             Rect box{ rr.x + label_w, rr.y, SP(420), rr.h - SP(6) };
-            if (slider(&w, Str("sens"), box, &settings.mouse_sensitivity, 0.2f, 3.0f, 0.05f, "%.2fx x")) {
+            if (slider(&w, Str("sens"), box, &settings.mouse_sensitivity, 0.2f, 3.0f, 0.05f, "%.2fx")) {
                 on_settings_changed("sensitivity");
             }
             ui.text("Ajuste fino; o mapeamento pertence ao GG Mouse Pro 3", rr.x, rr.b() - desc_h + SP(4),

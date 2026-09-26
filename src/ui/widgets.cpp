@@ -240,14 +240,20 @@ BtnResult button_big(WidgetCtx* c, Str label, IconId icon, Rect r, BtnKind kind,
     f32 sub_w = sub.empty() ? 0.0f : c->ui->measure(sub, FONT_SMALL);
     f32 total = ih + c->ui->sp(12) + mob_max(text_w, sub_w);
     f32 x = r.x + (r.w - total) * 0.5f;
-    c->ui->icon(icon, x, r.cy() - ih * 0.5f, ih, fg, 1.7f);
     f32 tx = x + ih + c->ui->sp(12);
-    if (sub.empty()) {
-        c->ui->text(label, tx, r.cy() - c->ui->line_h(FONT_TITLE) * 0.5f, FONT_TITLE, fg);
-    } else {
-        c->ui->text(label, tx, r.cy() - c->ui->sp(19), FONT_TITLE, fg);
-        c->ui->text(sub, tx, r.cy() + c->ui->sp(2), FONT_SMALL, fg.with_a(0.72f));
-    }
+
+    // The label and the sub-label are stacked from the real line heights. The
+    // previous version placed them at fixed offsets from the centre (cy-19 and
+    // cy+2): with an 18 px title whose line height is ~24 px the two boxes
+    // overlapped by a few pixels, so the second line sat on top of the
+    // descenders of the first. The icon is centred on the same stack.
+    const f32 lh_label = c->ui->line_h(FONT_TITLE);
+    const f32 lh_sub   = sub.empty() ? 0.0f : c->ui->line_h(FONT_SMALL);
+    const f32 stack    = lh_label + lh_sub;
+    f32 top = r.cy() + oy - stack * 0.5f;
+    c->ui->icon(icon, x, r.cy() + oy - ih * 0.5f, ih, fg, 1.7f);
+    c->ui->text(label, tx, top, FONT_TITLE, fg);
+    if (!sub.empty()) c->ui->text(sub, tx, top + lh_label, FONT_SMALL, fg.with_a(0.72f));
     return res;
 }
 
@@ -593,19 +599,33 @@ void meter_row(WidgetCtx* c, Str lb, f32 t, Str value_text, Rect r, Col fill) {
     c->ui->meter(r.x, r.y + label_h, r.w, c->ui->sp(6), t, th->surface_3, fill);
 }
 
+f32 stat_tile_height(WidgetCtx* c) {
+    const f32 pad = c->ui->sp(14);
+    return pad + c->ui->line_h(FONT_TINY) + c->ui->line_h(FONT_DISPLAY) + pad;
+}
+
 void stat_tile(WidgetCtx* c, Str lb, Str value, Str unit, Rect r, IconId icon, Col value_color) {
     Theme* th = c->theme;
     card(c, r, true);
-    f32 pad = c->ui->sp(14);
+    const f32 pad = c->ui->sp(14);
+    const f32 label_lh = c->ui->line_h(FONT_TINY);
+    const f32 value_lh = c->ui->line_h(FONT_DISPLAY);
+    const f32 unit_lh  = c->ui->line_h(FONT_SMALL);
     if (icon != ICON_NONE)
         c->ui->icon(icon, r.x + pad, r.y + pad, c->ui->sp(15), th->text_faint, 1.6f);
-    c->ui->text(lb, r.x + pad + (icon != ICON_NONE ? c->ui->sp(22) : 0), r.y + pad + c->ui->sp(1),
+    c->ui->text(lb, r.x + pad + (icon != ICON_NONE ? c->ui->sp(22) : 0), r.y + pad,
                 FONT_TINY, th->text_faint);
-    f32 vy = r.y + pad + c->ui->sp(20);
-    f32 vw = c->ui->measure(value, FONT_DISPLAY);
+    // Anchored to the bottom of the tile, never above the label: with the value
+    // placed from the top it overflowed the card and the big numbers lost their
+    // bottom edge.
+    f32 vy = r.b() - pad - value_lh;
+    const f32 min_vy = r.y + pad + label_lh + c->ui->sp(4);
+    if (vy < min_vy) vy = min_vy;
+    const f32 vw = c->ui->measure(value, FONT_DISPLAY);
     c->ui->text(value, r.x + pad, vy, FONT_DISPLAY, value_color);
     if (!unit.empty())
-        c->ui->text(unit, r.x + pad + vw + c->ui->sp(6), vy + c->ui->sp(22), FONT_SMALL, th->text_faint);
+        c->ui->text(unit, r.x + pad + vw + c->ui->sp(6), r.b() - pad - unit_lh,
+                    FONT_SMALL, th->text_faint);
 }
 
 void graph(WidgetCtx* c, const f32* samples, u32 count, u32 head, Rect r, Col line, f32 mn, f32 mx_,

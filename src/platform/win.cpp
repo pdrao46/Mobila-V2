@@ -59,7 +59,12 @@ static bool resolve_adb_in(const char* dir, char* out, u32 cap) {
 Str find_adb(Arena* a) {
     char found[512] = { 0 };
 
-    // 1) explicit override next to the app
+    // 1) the copy that ships with the application. The installer put adb.exe in
+    // the installation root while this searched only <exe>\tools, so a clean
+    // install always reported "adb.exe not found" and no phone could ever be
+    // reached. Both layouts are accepted now: everything the app needs travels
+    // with the app.
+    if (resolve_adb_in(g_paths.exe_dir, found, sizeof(found))) return str_dup(a, Str(found));
     if (resolve_adb_in(g_paths.tools_dir, found, sizeof(found))) return str_dup(a, Str(found));
 
     // 2) PATH

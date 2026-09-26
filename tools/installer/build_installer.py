@@ -4,7 +4,7 @@
 #
 #  Builds the one executable the user runs:
 #
-#      release/Mobilador-Setup-1.0.5.exe
+#      release/Mobilador-Setup-1.0.6.exe
 #
 #  Steps
 #    1. dist/Mobilador.exe            (the application, from tools/build.py)
@@ -39,7 +39,7 @@ DEX = os.path.join(ROOT, "dist", "server", "mobilador.dex")
 ANDROID_JAR = os.path.join(TOOLS, "android-stubs", "android-33.jar")
 D8_JAR = os.path.join(TOOLS, "d8.jar")
 PLATFORM = os.path.join(TOOLS, "platform-tools")
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 
 
 def run(cmd, **kw):
@@ -208,8 +208,15 @@ def stage_payload():
     def add(src, rel):
         files.append((src, rel))
     add(APP, "Mobilador.exe")
+    # Under tools/ on purpose: AppPaths::tools_dir is <exe>\tools and that is
+    # the first place find_adb() looks. At the payload root these files were
+    # never found and the app came up with "adb.exe not found" in red.
+    # adb.exe goes into tools\ along with its two DLLs (which must stay in the
+    # same folder as adb.exe). AppPaths::tools_dir is <exe>\tools and the first
+    # candidate find_adb() tries; installed at the payload root the app never
+    # found the adb it shipped with.
     for f in ("adb.exe", "AdbWinApi.dll", "AdbWinUsbApi.dll"):
-        add(os.path.join(PLATFORM, f), f)
+        add(os.path.join(PLATFORM, f), "tools/" + f)
     add(DEX, "server/mobilador.dex")
     for f in sorted(os.listdir(os.path.join(SRC_JAVA, "com", "mobilador", "server"))):
         if f.endswith(".java"):

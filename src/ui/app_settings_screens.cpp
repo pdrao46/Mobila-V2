@@ -134,10 +134,11 @@ void App::draw_settings(Rect r) {
         Rect rr{ ac.x + SP(16), ac.y + SP(236), ac.w - SP(32), SP(30) };
         ui.text("ESCALA DA INTERFACE", rr.x, rr.cy() - ui.line_h(FONT_LABEL) * 0.5f, FONT_LABEL, theme.text);
         Rect box{ rr.x + SP(230), rr.y, SP(300), rr.h - SP(6) };
-        if (slider(&w, Str("uiscale"), box, &settings.ui_scale, 0.8f, 1.6f, 0.05f, "%.2fx x")) {
-            // The font atlas and the batcher both take the scale from one place.
-            text.set_scale(settings.ui_scale * dpi_scale);
-            ui.set_dpi(settings.ui_scale * dpi_scale);
+        if (slider(&w, Str("uiscale"), box, &settings.ui_scale, 0.8f, 1.6f, 0.05f, "%.2fx")) {
+            // Deferred on purpose: rebuilding the font atlases here would free
+            // the textures this very frame is still drawing with. The change is
+            // applied in App::tick once the frame has been submitted.
+            request_ui_scale(settings.ui_scale * dpi_scale);
             on_settings_changed("ui_scale");
         }
         ui.text("Escala da interface aplicada a fontes, icones e espacamentos.",

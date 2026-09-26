@@ -10,11 +10,17 @@ namespace mob {
 
 // ------------------------------------------------------------------ GDI blob
 static bool create_font_face(Font& f, const wchar_t* family, u32 px, bool bold, f32 ui_scale) {
-    HDC screen = GetDC(nullptr);
-    HDC dc = CreateCompatibleDC(screen);
-    ReleaseDC(nullptr, screen);
-    if (!dc) return false;
-    f.dc = dc;
+    // Reuse the DC across rebuilds. Creating one here on every font rebuild
+    // leaked nine device contexts per UI-scale change, because nothing ever
+    // deleted the previous one.
+    HDC dc = (HDC)f.dc;
+    if (!dc) {
+        HDC screen = GetDC(nullptr);
+        dc = CreateCompatibleDC(screen);
+        ReleaseDC(nullptr, screen);
+        if (!dc) return false;
+        f.dc = dc;
+    }
 
     u32 size = (u32)((f32)px * ui_scale + 0.5f);
     if (size < 8) size = 8;
