@@ -7,7 +7,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 ## ANTES DE COMEÇAR — o que você precisa
 
 - Um PC com **Windows 10 ou 11, 64 bits**.
-- Acesso ao ficheiro `Mobilador-Setup-1.0.2.exe` (41,9 MB).
+- Acesso ao ficheiro `Mobilador-Setup-1.0.3.exe` (41,9 MB).
 - **Não** precisa de: administrador, Java, Visual C++ Redistributable, Android SDK,
   iTunes, ou qualquer driver extra.
 
@@ -15,7 +15,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 1 — Baixar o instalador para o PC
 
-1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.2.exe`
+1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.3.exe`
    (é o arquivo que está no visualizador de ficheiros).
 2. Clique em **Download** / **Baixar**.
 3. O Windows vai guardar em `C:\Users\<seu_nome>\Downloads`.
@@ -32,13 +32,13 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 2. Digite (troque o nome da pasta se não for Downloads):
 
    ```
-   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.2.exe" SHA256
+   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.3.exe" SHA256
    ```
 
 3. Compare a linha de números com esta:
 
    ```
-   1be80d74adff9f870c42ed6faa4e6540657a384bd210139f632de8473a67cec4
+   e5268e6b51403a4773a3f28b5cab06a382bd1bfebd5a30bd1b51cc64ce7fd004
    ```
 
    Tem de ser **igual, carácter por carácter**. Se for diferente, o download
@@ -48,7 +48,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 3 — Executar o instalador
 
-1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.2.exe`.
+1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.3.exe`.
 2. O Windows vai mostrar a tela azul **"O Windows protegeu o seu PC"**
    (SmartScreen). Isso acontece porque o programa não tem assinatura digital
    paga — é normal em programas novos.
@@ -138,14 +138,14 @@ Ele remove tudo e pergunta se você quer apagar também os perfis salvos.
 Se quiser só usar sem deixar rastro no PC:
 
 ```
-Mobilador-Setup-1.0.2.exe --portable
+Mobilador-Setup-1.0.3.exe --portable
 ```
 
 Ele extrai tudo para `Mobilador\` ao lado do `.exe` e fecha — sem atalhos, sem
 registo, sem instalação. Para escolher a pasta:
 
 ```
-Mobilador-Setup-1.0.2.exe --portable D:\Mobila
+Mobilador-Setup-1.0.3.exe --portable D:\Mobila
 ```
 
 ---

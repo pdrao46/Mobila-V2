@@ -70,9 +70,15 @@ static bool create_atlas(Font& f, Gfx* gfx, u32 w, u32 h) {
     td.MipLevels = 1; td.ArraySize = 1;
     td.Format = DXGI_FORMAT_R8_UNORM;
     td.SampleDesc.Count = 1;
-    td.Usage = D3D11_USAGE_DYNAMIC;
+    // DEFAULT, not DYNAMIC: the glyphs are written with UpdateSubresource, and
+    // D3D11 does not perform that copy on a DYNAMIC resource (DYNAMIC requires
+    // Map/Unmap). With DYNAMIC the upload silently did nothing, the atlas
+    // stayed zeroed, every glyph sampled as coverage 0 and the whole UI drew as
+    // opaque black blocks - with no error anywhere. The atlas is written once
+    // per glyph and only ever read by the GPU, so DEFAULT costs nothing here.
+    td.Usage = D3D11_USAGE_DEFAULT;
     td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    td.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    td.CPUAccessFlags = 0;
     if (FAILED(gfx->dev->CreateTexture2D(&td, nullptr, &f.tex))) return false;
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd{};
     srvd.Format = DXGI_FORMAT_R8_UNORM;
@@ -237,6 +243,33 @@ static bool build_fonts(TextRenderer* tr, f32 ui_scale) {
     return true;
 }
 
+// Reads one atlas back through a staging texture and reports whether any
+// coverage arrived. The 1.0.1 failure mode (UpdateSubresource on a DYNAMIC
+// texture) produced no error, no warning and no visual clue beyond the black
+// blocks; this check turns it into one precise line in the log.
+static bool atlas_has_content(Font& f, Gfx* gfx) {
+    if (!f.tex) return false;
+    D3D11_TEXTURE2D_DESC td{};
+    f.tex->GetDesc(&td);
+    td.Usage = D3D11_USAGE_STAGING;
+    td.BindFlags = 0;
+    td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    ID3D11Texture2D* staging = nullptr;
+    if (FAILED(gfx->dev->CreateTexture2D(&td, nullptr, &staging))) return false;
+    gfx->ctx->CopyResource(staging, f.tex);
+    bool any = false;
+    D3D11_MAPPED_SUBRESOURCE m{};
+    if (SUCCEEDED(gfx->ctx->Map(staging, 0, D3D11_MAP_READ, 0, &m))) {
+        for (u32 y = 0; y < td.Height && !any; ++y) {
+            const u8* row = (const u8*)m.pData + (usize)y * m.RowPitch;
+            for (u32 x = 0; x < td.Width; ++x) if (row[x]) { any = true; break; }
+        }
+        gfx->ctx->Unmap(staging, 0);
+    }
+    staging->Release();
+    return any;
+}
+
 bool TextRenderer::init(Gfx* gfx, f32 ui_scale) {
     arena.init(1 << 20);
     scale = ui_scale;
@@ -251,6 +284,22 @@ bool TextRenderer::init(Gfx* gfx, f32 ui_scale) {
         MOB_ERROR("text: font initialisation failed");
         return false;
     }
+    // One-off check of the upload path: an empty atlas means the window will
+    // open with unreadable text, which is not something the user can diagnose.
+    {
+        u32 checked = 0, empty = 0;
+        for (int i = 0; i < FONT_COUNT; ++i) {
+            if (!fonts[i].tex) continue;
+            ++checked;
+            if (!atlas_has_content(fonts[i], gfx)) ++empty;
+        }
+        if (empty)
+            MOB_ERROR("text: %u of %u glyph atlases read back EMPTY - text will draw as solid blocks",
+                      empty, checked);
+        else
+            MOB_DEBUG("text: %u glyph atlases verified (coverage uploaded)", checked);
+    }
+
     ok = true;
     MOB_DEBUG("text: atlases ready (scale %.2f, %d faces)", ui_scale, (int)FONT_COUNT);
     return true;

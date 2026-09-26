@@ -4,7 +4,7 @@
 #
 #  Builds the one executable the user runs:
 #
-#      release/Mobilador-Setup-1.0.2.exe
+#      release/Mobilador-Setup-1.0.3.exe
 #
 #  Steps
 #    1. dist/Mobilador.exe            (the application, from tools/build.py)
@@ -39,7 +39,7 @@ DEX = os.path.join(ROOT, "dist", "server", "mobilador.dex")
 ANDROID_JAR = os.path.join(TOOLS, "android-stubs", "android-33.jar")
 D8_JAR = os.path.join(TOOLS, "d8.jar")
 PLATFORM = os.path.join(TOOLS, "platform-tools")
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 
 
 def run(cmd, **kw):
@@ -85,9 +85,12 @@ def java_exe(javac):
 
 # --------------------------------------------------------------------- app
 def build_app(toolchain):
-    if os.path.exists(APP):
-        done("ja existe")
-        return True
+    # Always delegate to tools/build.py instead of reusing an existing
+    # dist/Mobilador.exe. That shortcut packaged whatever binary happened to be
+    # lying around: 1.0.3 went out carrying the 1.0.2 executable because the
+    # file already existed. build.py is incremental (and now header-aware), so
+    # a no-op rebuild costs well under a second; use --skip-app to opt out
+    # deliberately.
     step("compilando o aplicativo Windows")
     cmd = [sys.executable, os.path.join(TOOLS, "build.py")]
     if toolchain != "auto":

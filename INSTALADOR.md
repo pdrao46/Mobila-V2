@@ -3,16 +3,16 @@
 O instalador **não** fica no código-fonte — ele é um artefacto binário construído pelo
 pipeline deste repositório. Está publicado aqui mesmo, nesta pasta:
 
-## ➡️ [`release/Mobilador-Setup-1.0.2.exe`](release/Mobilador-Setup-1.0.2.exe) — 41,9 MB
+## ➡️ [`release/Mobilador-Setup-1.0.3.exe`](release/Mobilador-Setup-1.0.3.exe) — 41,9 MB
 
 Clique no link acima **e depois no botão de download** que aparece no canto direito da
 página (ícone ⬇ *Download* / *Download raw file*).
 
 | | |
 |---|---|
-| **Ficheiro** | `Mobilador-Setup-1.0.2.exe` |
-| **Tamanho** | 43 905 329 bytes (41,9 MB) |
-| **SHA-256** | `1be80d74adff9f870c42ed6faa4e6540657a384bd210139f632de8473a67cec4` |
+| **Ficheiro** | `Mobilador-Setup-1.0.3.exe` |
+| **Tamanho** | 43 905 841 bytes (41,9 MB) |
+| **SHA-256** | `e5268e6b51403a4773a3f28b5cab06a382bd1bfebd5a30bd1b51cc64ce7fd004` |
 | **Sistema** | Windows 10/11, 64 bits |
 | **Requisitos** | nenhum — sem Java, sem Visual C++, sem Android SDK, sem administrador |
 
@@ -23,13 +23,26 @@ página (ícone ⬇ *Download* / *Download raw file*).
 > automático (`tools/installer/test_payload.cpp`, roda em Linux) e o
 > instalador ainda tenta pastas alternativas se a padrão falhar.
 
-> **Versão 1.0.2** — corrige a renderização do aplicativo. O atlas de glifos é
-> criado como textura `R8_UNORM` (só cobertura), mas o pixel shader da UI lia
-> `.rgb` e `.a` como se fosse ARGB: cada glifo saía como um bloco sólido (só o
-> canal vermelho) com o padding preto opaco por cima. Agora existe um shader
-> `ps_text` próprio para texturas de cobertura. O `build.py` também passou a
-> recompilar quando um header muda (antes podia reutilizar objetos antigos e
-> produzir um binário que não correspondia ao código).
+> **Versão 1.0.3** — corrige a renderização do texto, que aparecia como blocos
+> pretos sólidos. Eram **duas** causas no caminho dos glifos:
+>
+> 1. o atlas de glifos é uma textura `R8_UNORM` (só cobertura em `.r`), mas o
+>    pixel shader da UI lia `.rgb` e `.a` como se fosse ARGB — numa textura R8 o
+>    `Sample` devolve `(cobertura, 0, 0, 1)`, ou seja blocos opacos sem os canais
+>    verde e azul;
+> 2. o atlas era criado como `D3D11_USAGE_DYNAMIC` e escrito com
+>    `UpdateSubresource` — combinação que o Direct3D **não executa** (recurso
+>    DYNAMIC exige `Map`/`Unmap`). O upload não acontecia, a cobertura ficava
+>    zero e todo o texto saía preto opaco.
+>
+> Agora existe um shader `ps_text` dedicado a texturas de cobertura, o atlas usa
+> `D3D11_USAGE_DEFAULT` (par correto do `UpdateSubresource`) e uma verificação no
+> arranque lê o atlas de volta e escreve no log se ele vier vazio.
+>
+> Também nesta versão: `build.py` e `build_installer.py` deixaram de reutilizar
+> artefatos antigos (o build ignorava alterações em headers e o empacotador
+> reutilizava o `dist/Mobilador.exe` existente — foi assim que uma versão saiu
+> com o executável anterior dentro).
 
 ## Como instalar
 
@@ -39,7 +52,7 @@ página (ícone ⬇ *Download* / *Download raw file*).
 3. Clique em **INSTALAR**.
 4. Abra o **Mobilador** e ligue a **Depuração USB** no telemóvel.
 
-> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.2.exe --portable [pasta]`
+> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.3.exe --portable [pasta]`
 
 ## Guias
 

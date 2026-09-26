@@ -112,6 +112,13 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (!strcmp(argv[1], "--paths")) return path_selftest() ? 0 : 1;
+    // Guard against a swapped argument order ("test_payload app.exe --paths"),
+    // which used to fall through to extract mode and try to create a directory
+    // literally named "--paths".
+    if (argv[2] && argv[2][0] == '-' && strcmp(argv[2], "--compare") != 0) {
+        printf("unknown option '%s' (did you mean: test_payload --paths ?)\n", argv[2]);
+        return 2;
+    }
     // Gate everything else on it: a wrong make_dirs() breaks installs silently.
     if (!path_selftest()) return 1;
     FILE* f = fopen(argv[1], "rb");
