@@ -1,0 +1,61 @@
+========================================================================
+  MOBILADOR 1.0.0 - INSTALADOR UNICO PARA WINDOWS (64 bits)
+========================================================================
+
+FICHEIRO:  Mobilador-Setup-1.0.0.exe   (41,9 MB)
+SHA-256 :  9d0984cf9dfb7405982ebc5b97184178ad773fad58954fd400dbec837344c303
+TESTADO :  assinatura PE x86-64 + subsystem GUI; payload com 23 ficheiros
+           verificado duas vezes (Python e C++, byte a byte).
+
+COMO INSTALAR
+-------------
+1. Copie Mobilador-Setup-1.0.0.exe para o PC Windows.
+2. Duplo clique. O Windows SmartScreen vai avisar ("Windows protegeu o seu
+   PC") porque o ficheiro nao tem assinatura digital. Clique em
+   "Mais informacoes" -> "Executar mesmo assim". Nao e preciso administrador.
+3. Clique em INSTALAR.
+4. No fim, marque (ou nao) os atalhos e clique em ABRIR MOBILADOR.
+
+O que ele faz por si:
+   - cria %LOCALAPPDATA%\Programs\Mobilador
+   - extrai a aplicacao (Mobilador.exe) + adb + drivers USB + documentacao
+   - cria os atalhos (Menu Iniciar / Ambiente de trabalho), se pedir
+   - registra "Mobilador" em Aplicativos e Recursos do Windows
+   - grava instalacao.log na pasta de instalacao
+
+NAO PRECISA DE NADA INSTALADO: nem Java, nem Visual C++ Redistributable,
+nem Android SDK. O Android side (o modulo que corre no telemovel) vai dentro
+do proprio programa, em server\mobilador.dex.
+
+REQUISITOS NO TELEMOVEL
+-----------------------
+   - Android 5.0 (API 21) ou superior
+   - Depuracao USB ligada (Opcoes de programador) e autorizacao do PC
+   - O modulo e enviado e executado pelo proprio Mobilador; adb.exe ja vai
+     dentro do pacote.
+
+OUTRAS FORMAS DE USAR
+---------------------
+   Mobilador-Setup-1.0.0.exe --portable            extrai e sai, sem instalar
+                                                   (para uma pen USB)
+   Mobilador-Setup-1.0.0.exe --portable D:\Mobila  extrai para uma pasta sua
+   Mobilador-Setup-1.0.0.exe --help                lista as opcoes
+
+DESINSTALAR
+-----------
+   Configuracoes -> Aplicativos -> "Mobilador" -> Desinstalar
+   (ou o Uninstall.exe dentro da pasta de instalacao). Os perfis ficam em
+   %APPDATA%\Mobilador e sao apagados se marcar a opcao na desinstalacao.
+
+SE ALGO CORRER MAL
+------------------
+   - "Acesso negado" a gravar: ja existe um Mobilador aberto. Feche-o e
+     clique em Reinstalar.
+   - Antivirus a bloquear: adicione excecao para o ficheiro; o .exe nao tem
+     assinatura, portanto alguns antivirus sao conservadores.
+   - Telemovel nao aparece: instale o driver USB do fabricante; o modo
+     "Depuracao USB" tem de estar ligado e autorizado no ecra.
+
+RECONSTRUIR O INSTALADOR (no repositorio)
+-----------------------------------------
+   python3 tools/installer/build_installer.py
