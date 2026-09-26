@@ -4,7 +4,7 @@
 #
 #  Turns the redistributable layout into one executable:
 #
-#      Mobilador-Setup-1.0.0.exe  =  installer stub (PE)  +  payload  + footer
+#      Mobilador-Setup-1.0.1.exe  =  installer stub (PE)  +  payload  + footer
 #
 #  The payload format is the one documented in payload_format.h.  Nothing is
 #  compressed on purpose: extraction is a plain copy, which is what makes the
@@ -143,7 +143,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--payload", default=PAYLOAD_DIR)
     ap.add_argument("--stub", default=os.path.join(WORK, "mobilador_setup.exe"))
-    ap.add_argument("--out", default=os.path.join(DIST, "Mobilador-Setup-1.0.0.exe"))
+    ap.add_argument("--out", default=os.path.join(DIST, "Mobilador-Setup-1.0.1.exe"))
     ap.add_argument("--verify", metavar="SETUP")
     ap.add_argument("--list", metavar="SETUP")
     args = ap.parse_args()

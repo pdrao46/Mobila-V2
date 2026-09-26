@@ -39,12 +39,13 @@
 #include <stdint.h>
 
 #include "payload_format.h"
+#include "path_util.h"
 
 using namespace mobinst;
 
 // ------------------------------------------------------------------ constants
 static const wchar_t* kAppName      = L"Mobilador";
-static const wchar_t* kAppVersion   = L"1.0.0";
+static const wchar_t* kAppVersion   = L"1.0.1";
 static const wchar_t* kPublisher    = L"Mobilador";
 static const wchar_t* kUninstallKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Mobilador";
 
@@ -84,6 +85,7 @@ static UiState g;
 static wchar_t g_self[MAX_PATH];        // full path of the running executable
 static uint64_t g_payload_off = 0;      // set when a payload was found
 static uint32_t g_payload_count = 0;
+static uint64_t g_payload_bytes = 0;   // summed from the footer, so the summary is real
 static bool     g_launch_requested = false;
 
 // Theming, mirrored from the application's AMOLED-adjacent dark theme so the
@@ -153,31 +155,48 @@ static bool file_exists_w(const wchar_t* p) {
     return a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-// Creates every intermediate directory of `path` (path may end in a file name;
-// the trailing component is simply created too, harmlessly).
-static bool make_dirs(const wchar_t* path) {
-    wchar_t tmp[MAX_PATH * 2];
-    wcsncpy(tmp, path, MAX_PATH * 2 - 1);
-    tmp[MAX_PATH * 2 - 1] = 0;
-    for (wchar_t* p = tmp + 3; *p; ++p) {
-        if (*p == L'\\' || *p == L'/') {
-            wchar_t save = *p;
-            *p = 0;
-            if (wcslen(tmp) >= 2 && tmp[1] != L':') {
-                if (!CreateDirectoryW(tmp, nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
-                    *p = save;
-                    return false;
-                }
-            } else if (tmp[1] == L':' && wcslen(tmp) > 3) {
-                if (!CreateDirectoryW(tmp, nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
-                    *p = save;
-                    return false;
-                }
-            }
-            *p = save;
-        }
+// Why the destination could not be used, so the log can say it instead of
+// guessing "(permissao?)" - the 1.0.0 message that hid a plain logic bug.
+static DWORD g_fs_error = 0;
+
+static const wchar_t* fs_error_text(DWORD e) {
+    switch (e) {
+    case ERROR_ACCESS_DENIED:     return L"acesso negado";
+    case ERROR_PATH_NOT_FOUND:    return L"caminho nao encontrado";
+    case ERROR_FILE_NOT_FOUND:    return L"caminho nao encontrado";
+    case ERROR_ALREADY_EXISTS:    return L"ja existe";
+    case ERROR_FILE_EXISTS:       return L"ja existe um arquivo com esse nome";
+    case ERROR_SHARING_VIOLATION: return L"arquivo em uso por outro programa";
+    case ERROR_DISK_FULL:         return L"disco cheio";
+    case ERROR_INVALID_NAME:      return L"nome de caminho invalido";
+    case ERROR_DIRECTORY:         return L"o caminho nao e uma pasta";
+    default:                      return L"erro do sistema";
     }
-    return true;
+}
+
+// Creates `path` and every folder missing above it - INCLUDING the last
+// component. The first release created only the intermediate ones (and then
+// checked that the destination existed, which it never did), so every install
+// failed with a misleading message. Which prefixes are needed is decided in
+// path_util.h, which has a unit test that runs on any platform.
+static bool make_dirs(const wchar_t* path) {
+    g_fs_error = 0;
+    bool ok = true;
+    mobpath::for_each_dir_prefix(path, [&](const wchar_t* prefix, std::size_t len) {
+        wchar_t one[MAX_PATH * 2];
+        if (len == 0 || len >= MAX_PATH * 2) { ok = false; g_fs_error = ERROR_BUFFER_OVERFLOW; return false; }
+        memcpy(one, prefix, len * sizeof(wchar_t));
+        one[len] = 0;
+        if (CreateDirectoryW(one, nullptr)) return true;
+        const DWORD e = GetLastError();
+        // Already there is fine, but only when it really is a folder: a file
+        // with the destination name is a failure, not a success.
+        if (e == ERROR_ALREADY_EXISTS && dir_exists(one)) return true;
+        ok = false;
+        g_fs_error = e;
+        return false;
+    });
+    return ok && dir_exists(path);
 }
 
 static bool join_w(wchar_t* out, size_t cap, const wchar_t* a, const wchar_t* b) {
@@ -343,10 +362,47 @@ static int do_install(const Options& opt) {
     while (dl > 3 && (dir[dl - 1] == L'\\' || dir[dl - 1] == L'/')) dir[--dl] = 0;
     snwprintf(msg, 1024, L"Instalando em %s", dir);
     ui_log(msg);
-    if (!make_dirs(dir) || !dir_exists(dir)) {
-        ui_log(L"[ERRO] nao foi possivel criar a pasta de instalacao (permissao?)");
-        CloseHandle(self);
-        return 3;
+    if (!make_dirs(dir)) {
+        const DWORD first_err = g_fs_error;
+        snwprintf(msg, 1024, L"[AVISO] %s nao pode ser usada (%s, erro %u).",
+                  dir, fs_error_text(first_err), (unsigned)first_err);
+        ui_log(msg);
+
+        // One retry per fallback folder: antivirus, folder redirection and
+        // restrictive profiles all break the default location, and none of
+        // them should end with the user unable to install at all.
+        static wchar_t alt0[MAX_PATH], alt1[MAX_PATH];
+        const wchar_t* alt[2] = { nullptr, nullptr };
+        wchar_t base[MAX_PATH];
+        if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_LOCAL_APPDATA, nullptr, 0, base)) && join_w(alt0, MAX_PATH, base, L"Mobilador"))
+            alt[0] = alt0;
+        if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_PROFILE, nullptr, 0, base)) && join_w(alt1, MAX_PATH, base, L"Mobilador"))
+            alt[1] = alt1;
+
+        bool moved = false;
+        for (int i = 0; i < 2 && alt[i]; ++i) {
+            if (_wcsicmp(alt[i], dir) == 0) continue;
+            snwprintf(msg, 1024, L"[INFO] tentando %s ...", alt[i]);
+            ui_log(msg);
+            if (make_dirs(alt[i])) {
+                wcsncpy(dir, alt[i], MAX_PATH - 1); dir[MAX_PATH - 1] = 0;
+                moved = true;
+                break;
+            }
+            snwprintf(msg, 1024, L"[AVISO] %s tambem falhou (%s, erro %u).",
+                      alt[i], fs_error_text(g_fs_error), (unsigned)g_fs_error);
+            ui_log(msg);
+        }
+        if (!moved) {
+            snwprintf(msg, 1024,
+                      L"[ERRO] nao foi possivel criar a pasta de instalacao (%s, erro %u).",
+                      fs_error_text(first_err), (unsigned)first_err);
+            ui_log(msg);
+            ui_log(L"[DICA] use \"Procurar...\" para escolher uma pasta sua, ou rode:");
+            ui_log(L"[DICA] Mobilador-Setup.exe --portable C:\\Mobilador");
+            CloseHandle(self);
+            return 3;
+        }
     }
 
     // ---- 3. files
@@ -1059,6 +1115,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             have_payload = true;
             g_payload_off = rd.payload_off;
             g_payload_count = rd.count;
+            for (uint32_t i = 0; i < rd.count; ++i) {
+                PackedEntry e;
+                if (rd.entry(i, &e)) g_payload_bytes += e.data_len;
+            }
         }
         CloseHandle(self);
     }
@@ -1121,7 +1181,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         SetWindowTextW(g.path_edit, path);
         wchar_t msg[512];
         snwprintf(msg, 512, L"Pronto. %u arquivos serao instalados (%.1f MB).",
-                  g_payload_count, 0.0);
+                  g_payload_count, g_payload_bytes / 1048576.0);
         ui_log(msg);
         ui_log(L"android-server: modulo do celular (mobilador.dex) incluido.");
         ui_log(L"adb.exe e as DLLs do platform-tools vao junto do executavel.");

@@ -2,14 +2,14 @@
   MOBILADOR 1.0.0 - INSTALADOR UNICO PARA WINDOWS (64 bits)
 ========================================================================
 
-FICHEIRO:  Mobilador-Setup-1.0.0.exe   (41,9 MB)
-SHA-256 :  9d0984cf9dfb7405982ebc5b97184178ad773fad58954fd400dbec837344c303
+FICHEIRO:  Mobilador-Setup-1.0.1.exe   (41,9 MB)
+SHA-256 :  3441e9ce5554f91431404d85f7640f4d3ee0a0eedbe6648fa1f0136e8bd76bab
 TESTADO :  assinatura PE x86-64 + subsystem GUI; payload com 23 ficheiros
            verificado duas vezes (Python e C++, byte a byte).
 
 COMO INSTALAR
 -------------
-1. Copie Mobilador-Setup-1.0.0.exe para o PC Windows.
+1. Copie Mobilador-Setup-1.0.1.exe para o PC Windows.
 2. Duplo clique. O Windows SmartScreen vai avisar ("Windows protegeu o seu
    PC") porque o ficheiro nao tem assinatura digital. Clique em
    "Mais informacoes" -> "Executar mesmo assim". Nao e preciso administrador.
@@ -36,10 +36,10 @@ REQUISITOS NO TELEMOVEL
 
 OUTRAS FORMAS DE USAR
 ---------------------
-   Mobilador-Setup-1.0.0.exe --portable            extrai e sai, sem instalar
+   Mobilador-Setup-1.0.1.exe --portable            extrai e sai, sem instalar
                                                    (para uma pen USB)
-   Mobilador-Setup-1.0.0.exe --portable D:\Mobila  extrai para uma pasta sua
-   Mobilador-Setup-1.0.0.exe --help                lista as opcoes
+   Mobilador-Setup-1.0.1.exe --portable D:\Mobila  extrai para uma pasta sua
+   Mobilador-Setup-1.0.1.exe --help                lista as opcoes
 
 DESINSTALAR
 -----------

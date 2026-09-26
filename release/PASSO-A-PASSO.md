@@ -7,7 +7,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 ## ANTES DE COMEÇAR — o que você precisa
 
 - Um PC com **Windows 10 ou 11, 64 bits**.
-- Acesso ao ficheiro `Mobilador-Setup-1.0.0.exe` (41,9 MB).
+- Acesso ao ficheiro `Mobilador-Setup-1.0.1.exe` (41,9 MB).
 - **Não** precisa de: administrador, Java, Visual C++ Redistributable, Android SDK,
   iTunes, ou qualquer driver extra.
 
@@ -15,7 +15,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 1 — Baixar o instalador para o PC
 
-1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.0.exe`
+1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.1.exe`
    (é o arquivo que está no visualizador de ficheiros).
 2. Clique em **Download** / **Baixar**.
 3. O Windows vai guardar em `C:\Users\<seu_nome>\Downloads`.
@@ -32,13 +32,13 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 2. Digite (troque o nome da pasta se não for Downloads):
 
    ```
-   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.0.exe" SHA256
+   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.1.exe" SHA256
    ```
 
 3. Compare a linha de números com esta:
 
    ```
-   9d0984cf9dfb7405982ebc5b97184178ad773fad58954fd400dbec837344c303
+   3441e9ce5554f91431404d85f7640f4d3ee0a0eedbe6648fa1f0136e8bd76bab
    ```
 
    Tem de ser **igual, carácter por carácter**. Se for diferente, o download
@@ -48,7 +48,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 3 — Executar o instalador
 
-1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.0.exe`.
+1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.1.exe`.
 2. O Windows vai mostrar a tela azul **"O Windows protegeu o seu PC"**
    (SmartScreen). Isso acontece porque o programa não tem assinatura digital
    paga — é normal em programas novos.
@@ -72,7 +72,10 @@ Abre uma janela escura do **Mobilador Setup**. Nela:
    ```
    C:\Users\<seu_nome>\AppData\Local\Programs\Mobilador
    ```
-   Quer instalar em outro lugar? Clique em **Alterar** e escolha a pasta.
+   Quer instalar em outro lugar? Clique em **Procurar...** e escolha a pasta.
+   (Na 1.0.1, se a pasta padrão não puder ser criada, o instalador tenta
+   automaticamente `%LOCALAPPDATA%\Mobilador` e depois `%USERPROFILE%\Mobilador`,
+   e diz no log onde instalou.)
 2. Escolha os atalhos que quiser:
    - ☑ **Atalho no Menu Iniciar** (recomendado)
    - ☑ **Atalho na Área de Trabalho** (opcional)
@@ -135,14 +138,14 @@ Ele remove tudo e pergunta se você quer apagar também os perfis salvos.
 Se quiser só usar sem deixar rastro no PC:
 
 ```
-Mobilador-Setup-1.0.0.exe --portable
+Mobilador-Setup-1.0.1.exe --portable
 ```
 
 Ele extrai tudo para `Mobilador\` ao lado do `.exe` e fecha — sem atalhos, sem
 registo, sem instalação. Para escolher a pasta:
 
 ```
-Mobilador-Setup-1.0.0.exe --portable D:\Mobila
+Mobilador-Setup-1.0.1.exe --portable D:\Mobila
 ```
 
 ---
@@ -166,6 +169,7 @@ Mobilador-Setup-1.0.0.exe --portable D:\Mobila
 | "O Windows protegeu o seu PC" | Mais informações → Executar mesmo assim |
 | Antivírus apaga o `.exe` | Adicione exceção e execute de novo |
 | "Acesso negado" ao gravar arquivo | O Mobilador está aberto — feche-o e clique em **Reinstalar** |
+| "não foi possível criar a pasta de instalação" | Corrigido na **1.0.1**: o instalador cria a pasta final e, se não puder, tenta pastas alternativas. Se ainda aparecer: **Procurar...** → escolha uma pasta sua, ou use `--portable` |
 | Nada acontece no duplo clique | Botão direito → Executar como administrador |
 | Telefone não aparece | Ligue a Depuração USB e autorize o PC; instale o driver do fabricante |
 | Instalei em outro PC e quero sem instalar | Use `--portable` |

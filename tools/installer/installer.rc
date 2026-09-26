@@ -24,11 +24,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "Mobilador"
             VALUE "FileDescription",  "MOBILADOR - instalador (espelhamento USB de baixa latencia)"
-            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "FileVersion",      "1.0.1.0"
             VALUE "InternalName",     "MobiladorSetup"
             VALUE "OriginalFilename", "Mobilador-Setup.exe"
             VALUE "ProductName",      "MOBILADOR"
-            VALUE "ProductVersion",   "1.0.0"
+            VALUE "ProductVersion",   "1.0.1"
             VALUE "LegalCopyright",   "Mobilador"
             VALUE "Comments",         "Instala o aplicativo, o modulo do celular (mobilador.dex), o adb e a documentacao. Sem administrador, sem rede."
         END

@@ -21,6 +21,9 @@
 #include <stdint.h>
 
 #include "payload_format.h"
+#include "path_util.h"
+#include <string>
+#include <cwchar>
 
 using namespace mobinst;
 
@@ -39,11 +42,78 @@ static uint64_t file_size(FILE* f) {
     return (uint64_t)n;
 }
 
+// ============================================================================
+//  Self-test: which folders make_dirs() has to create.
+//
+//  Release 1.0.0 shipped a make_dirs() that created the intermediate folders
+//  but never the destination itself, so the install aborted on every Windows
+//  machine with "nao foi possivel criar a pasta de instalacao (permissao?)".
+//  Nothing on Linux noticed, because nothing on Linux tested the logic. This
+//  runs before the payload work, on every platform, and fails the build if the
+//  last component stops being created again.
+// ============================================================================
+static std::wstring prefixes_of(const wchar_t* p) {
+    std::wstring out;
+    bool first = true;
+    mobpath::for_each_dir_prefix(p, [&](const wchar_t* s, std::size_t len) {
+        if (!first) out += L"|";
+        first = false;
+        out.append(s, len);
+        return true;
+    });
+    return out;
+}
+
+static int path_selftest() {
+    const struct { const wchar_t* path; const wchar_t* want; } cases[] = {
+        { L"C:\\a", L"C:\\a" },
+        { L"C:\\a\\b\\c", L"C:\\a|C:\\a\\b|C:\\a\\b\\c" },
+        { L"C:\\Users\\pedro\\AppData\\Local\\Programs\\Mobilador",
+          L"C:\\Users|C:\\Users\\pedro|C:\\Users\\pedro\\AppData|"
+          L"C:\\Users\\pedro\\AppData\\Local|C:\\Users\\pedro\\AppData\\Local\\Programs|"
+          L"C:\\Users\\pedro\\AppData\\Local\\Programs\\Mobilador" },
+        { L"C:\\a\\b\\", L"C:\\a|C:\\a\\b" },          // trailing separator
+        { L"C:\\", L"C:\\" },
+        { L"/usr/local/share", L"/usr|/usr/local|/usr/local/share" },
+        { L"rel\\dir", L"rel|rel\\dir" },
+        { L"\\\\srv\\share\\x", L"\\\\srv\\share\\x" },  // UNC: share is not created
+        { L"C:/a/b", L"C:/a|C:/a/b" },
+    };
+    const int total = (int)(sizeof(cases) / sizeof(cases[0]));
+    int bad = 0;
+    for (int i = 0; i < total; ++i) {
+        const std::wstring got = prefixes_of(cases[i].path);
+        if (got != cases[i].want) {
+            printf("  FAIL paths[%d]: %ls\n    got  %ls\n    want %ls\n",
+                   i, cases[i].path, got.c_str(), cases[i].want);
+            ++bad;
+        }
+        // The regression itself: the last prefix must be the whole path.
+        std::wstring whole(cases[i].path);
+        const std::size_t root = mobpath::root_len(whole.c_str(), whole.size());
+        while (whole.size() > 1 && whole.size() > root && mobpath::is_sep(whole[whole.size() - 1]))
+            whole.erase(whole.size() - 1);
+        const std::size_t bar = got.rfind(L'|');
+        const std::wstring last = (bar == std::wstring::npos) ? got : got.substr(bar + 1);
+        if (last != whole) {
+            printf("  FAIL paths[%d]: last prefix of %ls is '%ls', not the path itself\n",
+                   i, cases[i].path, last.c_str());
+            ++bad;
+        }
+    }
+    printf("path prefix self-test: %s (%d cases)\n", bad ? "FAIL" : "ok", total);
+    return bad == 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
-        printf("usage: test_payload <installer.exe> [--compare <payload_dir> | <extract_dir>]\n");
+        printf("usage: test_payload <installer.exe> [--compare <payload_dir> | <extract_dir>]\n"
+               "       test_payload --paths        (only the path-prefix self-test)\n");
         return 2;
     }
+    if (!strcmp(argv[1], "--paths")) return path_selftest() ? 0 : 1;
+    // Gate everything else on it: a wrong make_dirs() breaks installs silently.
+    if (!path_selftest()) return 1;
     FILE* f = fopen(argv[1], "rb");
     if (!f) { printf("cannot open %s\n", argv[1]); return 2; }
     FileCtx ctx; ctx.f = f;

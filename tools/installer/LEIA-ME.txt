@@ -1,4 +1,4 @@
-MOBILADOR 1.0.0 - LEIA-ME
+MOBILADOR 1.0.1 - LEIA-ME
 =========================
 
 O que foi instalado
