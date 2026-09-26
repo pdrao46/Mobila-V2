@@ -23,3 +23,7 @@ desktop.ini
 settings.ini
 profiles/
 release/
+
+# Python bytecode from the tools (checkers, packers)
+__pycache__/
+*.pyc
