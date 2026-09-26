@@ -55,7 +55,7 @@ final class AudioServer {
         }
     }
 
-    void start(Context context, int bitrateKbps) {
+    void start(final Context context, final int bitrateKbps) {
         mRunning = true;
         mThread = new Thread(new Runnable() {
             @Override public void run() { runLoop(context, bitrateKbps); }

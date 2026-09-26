@@ -78,11 +78,13 @@ final class InputServer {
         mScreenH = h;
         mCursorX = w * 0.5f;
         mCursorY = h * 0.5f;
+        // Keep the uinput device geometry in step if it already exists.
+        if (mInjector instanceof UinputInjector) ((UinputInjector) mInjector).setScreenSize(w, h);
     }
 
     void start(Listener listener, boolean preferKernel) {
         mListener = listener;
-        mInjector = preferKernel ? UinputInjector.tryCreate() : null;
+        mInjector = preferKernel ? UinputInjector.tryCreate(mScreenW, mScreenH) : null;
         if (mInjector == null) mInjector = new ManagerInjector();
         if (listener != null) listener.onInjectionBackend(mInjector.name());
         Log.info("input injection backend: " + mInjector.name());
@@ -358,10 +360,14 @@ final class InputServer {
         private Method mIoctlInt;
         private Object mIoctlTarget;
         private int mAbsMaxX, mAbsMaxY;
+        // The screen size lives here (and not only in the enclosing class):
+        // this is a static nested class, so it has no access to an outer
+        // instance and must be told the geometry explicitly.
+        private int mScreenW = 1080, mScreenH = 1920;
 
-        static UinputInjector tryCreate() {
+        static UinputInjector tryCreate(int screenW, int screenH) {
             try {
-                UinputInjector u = new UinputInjector();
+                UinputInjector u = new UinputInjector(screenW, screenH);
                 if (u.setup()) return u;
                 u.close();
             } catch (Throwable t) {
@@ -370,8 +376,16 @@ final class InputServer {
             return null;
         }
 
-        private UinputInjector() {
+        private UinputInjector(int screenW, int screenH) {
             mEventSize = System.getProperty("os.arch", "aarch64").contains("64") ? 24 : 16;
+            setScreenSize(screenW, screenH);
+        }
+
+        void setScreenSize(int w, int h) {
+            mScreenW = w;
+            mScreenH = h;
+            mAbsMaxX = w - 1;
+            mAbsMaxY = h - 1;
         }
 
         private boolean setup() throws Exception {

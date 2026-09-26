@@ -379,6 +379,10 @@ final class ScreenServer {
             mBytesSent += info.size;
             mLastFrameAt = nowUs;
             mStats.onFrameEncoded(captureUs, (int) encodeUs, info.size, key);
+        } catch (Throwable t) {
+            // A dead socket must never stop the callback thread from releasing
+            // its buffers: report it and let the session logic reconnect.
+            report("frame send failed: " + t);
         } finally {
             codec.releaseOutputBuffer(index, false);
         }

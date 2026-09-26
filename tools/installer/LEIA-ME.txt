@@ -1,0 +1,50 @@
+MOBILADOR 1.0.0 - LEIA-ME
+=========================
+
+O que foi instalado
+-------------------
+  Mobilador.exe            o aplicativo (espelhamento de tela por USB)
+  adb.exe                  Android Platform Tools, usado para falar com o celular
+  AdbWinApi.dll            bibliotecas do adb (obrigatorias para o adb.exe acima)
+  AdbWinUsbApi.dll
+  server\mobilador.dex     modulo que roda DENTRO do celular (nao e um APK)
+  server\src\...           fontes Java desse modulo (para quem quiser recompilar)
+  tools\d8.jar             D8, usado para gerar o .dex a partir dos fontes
+  tools\android-stubs\     android.jar (API 33) usado na compilacao do modulo
+  docs\                    manual completo (instalacao, uso, configuracao, arquitetura)
+  licencas\                licencas dos componentes redistribuidos
+
+Primeiro uso, em cinco passos
+-----------------------------
+  1. No celular: Configuracoes > Sobre o telefone > toque 7x em "Numero da versao".
+  2. Opcoes do desenvolvedor > ative "Depuracao USB".
+  3. Conecte o cabo USB e aceite "Permitir depuracao USB" na tela do celular.
+  4. Abra o Mobilador (atalho na area de trabalho ou no menu Iniciar).
+  5. Clique em START FREE FIRE (ou F5). Depois F12 entra no modo jogo.
+
+O modulo do celular e enviado automaticamente na primeira conexao, porque ele
+ja vem pronto em server\mobilador.dex - nao e preciso instalar nada no celular.
+
+Atalhos
+-------
+  F5   inicia/para a sessao        F12  modo jogo (cursor capturado)
+  F8   mostra/esconde o overlay    F11  fullscreen sem borda
+  F9   solta o mouse               F10  captura o mouse de novo
+
+Se algo nao conectar
+--------------------
+  Abra DIAGNOSTICO dentro do aplicativo: cada item (USB, ADB, modulo no celular,
+  GPU, decodificador, entrada) diz o que foi medido e o que fazer. O log da
+  instalacao fica em instalacao.log nesta mesma pasta.
+
+Desinstalar
+-----------
+  Configuracoes > Aplicativos > Aplicativos instalados > Mobilador > Desinstalar,
+  ou execute Uninstall.exe nesta pasta. As suas configuracoes em
+  %LOCALAPPDATA%\Mobilador sao mantidas (apague a pasta se quiser zerar tudo).
+
+O que o Mobilador NAO faz
+-------------------------
+  Nao mapeia teclas, nao tem macro, nao tem aimbot, nao injeta codigo no jogo e
+  nao contorna anti-cheat. Ele apenas transporta tela e entrada pelo cabo USB.
+  O mapeamento pertence ao GG Mouse Pro 3, no celular.

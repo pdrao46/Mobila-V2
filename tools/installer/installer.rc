@@ -1,0 +1,40 @@
+// ============================================================================
+//  MOBILADOR - tools/installer/installer.rc
+//  Icon and version block of the self-extracting installer.  Compiled with
+//  `zig rc` (or windres) and linked into Mobilador-Setup.exe so Explorer, the
+//  taskbar and the Add/Remove programs entry show the product icon.
+// ============================================================================
+
+#include <windows.h>
+
+IDI_APPICON ICON "assets/icon/mobilador.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName",      "Mobilador"
+            VALUE "FileDescription",  "MOBILADOR - instalador (espelhamento USB de baixa latencia)"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "MobiladorSetup"
+            VALUE "OriginalFilename", "Mobilador-Setup.exe"
+            VALUE "ProductName",      "MOBILADOR"
+            VALUE "ProductVersion",   "1.0.0"
+            VALUE "LegalCopyright",   "Mobilador"
+            VALUE "Comments",         "Instala o aplicativo, o modulo do celular (mobilador.dex), o adb e a documentacao. Sem administrador, sem rede."
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
