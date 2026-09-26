@@ -119,24 +119,14 @@ void App::post_gfx_init() {
     // Capabilities are collected from the real machine; AUTO OPTIMIZE and the
     // FPS ladder use them and never invent a number.
     Settings::Caps caps;
-    caps.cpu_cores = (u32)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
-    MEMORYSTATUSEX ms{}; ms.dwLength = sizeof(ms);
-    if (GlobalMemoryStatusEx(&ms)) caps.ram_gb = (f64)ms.ullTotalPhys / (1024.0 * 1024.0 * 1024.0);
-    caps.gpu_encode_decode = gfx.gpu.dedicated_vram > 0 && !gfx.gpu.is_software;
-    caps.hardware_decode = caps.gpu_encode_decode;
-    caps.discrete_gpu = gfx.gpu.is_discrete;
-    caps.vram_mb = gfx.gpu.dedicated_vram / (1024 * 1024);
-    for (u32 i = 0; i < monitors.count; ++i) {
-        if (monitors.items[i].primary) caps.monitor_hz = monitors.items[i].refresh_hz();
-    }
-    if (caps.monitor_hz == 0) caps.monitor_hz = 60;
+    collect_caps(&caps);
     // AUTO OPTIMIZE on first run only: after that the user's saved choices are
     // authoritative. Running it every launch would silently undo deliberate
-    // settings.
+    // settings. The button in DESEMPENHO and PAINEL calls the same optimiser.
     if (first_run) {
         Str reasons[8];
         settings.auto_optimize(caps, reasons, 8);
-        MOB_INFO("auto optimize applied (%u reasons)", 1u);
+        for (u32 i = 0; i < 8; ++i) if (reasons[i].n) MOB_INFO("auto: %.*s", (int)reasons[i].n, reasons[i].p);
         w.toast("AUTO OPTIMIZE aplicado a esta maquina", theme.accent, ICON_WAND, 4.0f);
     }
 
@@ -830,6 +820,58 @@ void App::draw_video_surface(Rect area) {
 // full screen), into Documentos\Mobilador. The on-screen flash is the only
 // confirmation that is not a file system message.
 // ---------------------------------------------------------------------------
+void App::collect_caps(Settings::Caps* caps) {
+    caps->cpu_cores = (u32)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    MEMORYSTATUSEX ms{}; ms.dwLength = sizeof(ms);
+    if (GlobalMemoryStatusEx(&ms)) caps->ram_gb = (f64)ms.ullTotalPhys / (1024.0 * 1024.0 * 1024.0);
+    caps->gpu_encode_decode = gfx.gpu.dedicated_vram > 0 && !gfx.gpu.is_software;
+    caps->hardware_decode = caps->gpu_encode_decode;
+    caps->discrete_gpu = gfx.gpu.is_discrete;
+    caps->vram_mb = gfx.gpu.dedicated_vram / (1024 * 1024);
+    caps->monitor_hz = 0;
+    for (u32 i = 0; i < monitors.count; ++i) {
+        if (monitors.items[i].primary) caps->monitor_hz = monitors.items[i].refresh_hz();
+    }
+    if (caps->monitor_hz == 0) caps->monitor_hz = 60;
+    // The phone decides its own ceiling; without a device the optimiser works
+    // from the PC side only.
+    caps->device_max_w = 1920;
+    caps->device_max_h = 1080;
+    caps->device_max_fps = caps->monitor_hz;
+    if (adb.have_device()) {
+        if (mirror.device.display_w) caps->device_max_w = mirror.device.display_w;
+        if (mirror.device.display_h) caps->device_max_h = mirror.device.display_h;
+        if (mirror.device.max_fps_hint) caps->device_max_fps = mirror.device.max_fps_hint;
+    }
+}
+
+void App::apply_auto_optimize(bool announce) {
+    Settings::Caps caps;
+    collect_caps(&caps);
+    Str reasons[10];
+    settings.auto_optimize(caps, reasons, 10);
+    on_settings_changed("auto_optimize");
+    // Everything the optimiser changed is written to the log, so the decision
+    // can be audited instead of guessed.
+    u32 logged = 0;
+    for (u32 i = 0; i < 10; ++i) {
+        if (!reasons[i].n) continue;
+        MOB_INFO("auto: %.*s", (int)reasons[i].n, reasons[i].p);
+        ++logged;
+    }
+    char msg[192];
+    // target_fps == 0 is the MAX FPS sentinel: print the words, never "0 fps".
+    char fps_txt[16];
+    if (settings.target_fps) snprintf(fps_txt, sizeof(fps_txt), "%u fps", settings.target_fps);
+    else snprintf(fps_txt, sizeof(fps_txt), "MAX FPS");
+    snprintf(msg, sizeof(msg), "AUTO OPTIMIZE: %ux%u @ %s, %s, %u kbps",
+             settings.resolution_w, settings.resolution_h, fps_txt,
+             settings.codec == CODEC_H265 ? "H.265" : "H.264", settings.bitrate_kbps);
+    MOB_INFO("%s (%u ajustes)", msg, logged);
+    if (announce) w.toast(msg, theme.accent, ICON_WAND, 5.0f);
+    run_diagnostics(true);
+}
+
 void App::request_ui_scale(f32 scale) {
     if (scale <= 0.1f) return;
     pending_ui_scale = scale;

@@ -67,7 +67,7 @@ bool App::setting_row_dropdown(const char* key, const char* label, Rect r, const
 // ===========================================================================
 //  SETTINGS
 // ===========================================================================
-void App::draw_settings(Rect r) {
+f32 App::draw_settings(Rect r) {
     const f32 gap = SP(16);
     f32 y = r.y;
 
@@ -260,12 +260,14 @@ void App::draw_settings(Rect r) {
     if (button(&w, game_mode ? "DESATIVAR" : "ATIVAR AGORA", gb, game_mode ? BTN_DANGER : BTN_PRIMARY, ICON_GAMEPAD).clicked) {
         set_game_mode(!game_mode);
     }
+
+    return gm.b() - r.y;
 }
 
 // ===========================================================================
 //  ABOUT
 // ===========================================================================
-void App::draw_about(Rect r) {
+f32 App::draw_about(Rect r) {
     const f32 gap = SP(16);
     Rect id{ r.x, r.y, r.w, SP(150) };
     card(&w, id, true);
@@ -310,6 +312,8 @@ void App::draw_about(Rect r) {
                              row.w - SP(250), FONT_TINY, theme.text_faint);
         }
     }
+
+    return sh.b() - r.y;
 }
 
 // ===========================================================================

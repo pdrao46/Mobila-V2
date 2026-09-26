@@ -158,10 +158,18 @@ struct App {
     bool  screenshot_pending = false;
     bool  ui_invariant_reported = false;   // the vertex/index check logs once
     f32   pending_ui_scale = 0.0f;         // applied after the frame is submitted
+    // Height each screen reported on the last frame, so the scroll range always
+    // matches the content (see the draw_* return values).
+    f32   screen_content_h[16] = { 0 };
     char  screenshot_msg[256] = "";
     // Captures the frame that is about to be presented and writes it next to the
     // other artefacts (Documentos\Mobilador).
     void take_screenshot();
+    // Collects the machine's real capabilities and runs the same optimiser the
+    // first launch uses. AUTO OPTIMIZE used to call run_diagnostics(), which only
+    // *reports*: the button changed nothing.
+    void collect_caps(Settings::Caps* caps);
+    void apply_auto_optimize(bool announce);
     // Asks for a new UI scale. The change is applied at the frame boundary
     // (see App::tick), never from inside the widget code that draws the slider:
     // rebuilding the glyph atlases releases the textures the already-recorded
@@ -228,13 +236,18 @@ struct App {
     void draw_shell(Rect content);
     void draw_sidebar(Rect r);
     void draw_topbar(Rect r);
-    void draw_dashboard(Rect r);
-    void draw_performance(Rect r);
-    void draw_latency(Rect r);
-    void draw_benchmark(Rect r);
-    void draw_diagnostics(Rect r);
-    void draw_settings(Rect r);
-    void draw_about(Rect r);
+    // Each screen returns the height it actually consumed, measured as it
+    // lays out. The scroll range is derived from that number instead of a
+    // per-screen constant: the constants (SP(690) for the dashboard, for
+    // example) fell behind the layouts they described, so the bottom cards were
+    // clipped with no scrollbar to reach them.
+    f32 draw_dashboard(Rect r);
+    f32 draw_performance(Rect r);
+    f32 draw_latency(Rect r);
+    f32 draw_benchmark(Rect r);
+    f32 draw_diagnostics(Rect r);
+    f32 draw_settings(Rect r);
+    f32 draw_about(Rect r);
     const char* mir_device_android() const;
     void draw_overlay();
     void draw_video_surface(Rect viewport_area);

@@ -158,6 +158,18 @@ void stat_tile(WidgetCtx* c, Str label, Str value, Str unit, Rect r, IconId icon
 // size the rect with this instead of a hardcoded number: FONT_DISPLAY is 40 px,
 // so a fixed 70 px tile cut the bottom off every big number.
 f32 stat_tile_height(WidgetCtx* c);
+
+// One card holding a grid of metrics with thin separators - the dashboard
+// pattern of the product reference. Each cell is caption + value + unit.
+struct MetricCell {
+    const char* label;
+    Str         value;
+    Str         unit;
+    IconId      icon;
+    Col         color;
+};
+void metric_grid(WidgetCtx* c, Rect r, const MetricCell* cells, u32 count, u32 cols);
+f32  metric_grid_height(WidgetCtx* c, u32 count, u32 cols);
 void graph(WidgetCtx* c, const f32* samples, u32 count, u32 head, Rect r, Col line, f32 min, f32 max,
            const char* y_label = nullptr, bool fill_area = true);
 void progress_ring(WidgetCtx* c, f32 cx, f32 cy, f32 radius, f32 t, Col color, f32 thickness = 3.0f);

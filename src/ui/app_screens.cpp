@@ -84,6 +84,12 @@ void App::draw_shell(Rect full) {
     ui.rect(content.x, content.b() - SP(1), content.w, SP(1), theme.border);
     ui.rect(sidebar.r() - SP(1), sidebar.y, SP(1), sidebar.h, theme.border);
 
+    // A whisper of the accent under the top bar: the reference background is not
+    // flat, it is lit from above. Two vertices, no blur pass, no cost per frame.
+    ui.rect_grad(content.x, content.y + topbar_h, content.w, SP(260),
+                 theme.accent.with_a(theme.is_light() ? 0.05f : 0.07f),
+                 theme.accent.with_a(0.0f));
+
     draw_sidebar(sidebar);
     draw_topbar(topbar);
 
@@ -92,17 +98,12 @@ void App::draw_shell(Rect full) {
     Rect view{ content.x + pad, content.y + pad, content.w - pad * 2, content.h - pad * 2 - SP(28) };
     if (view.w < SP(200) || view.h < SP(100)) return;
 
-    f32 content_h = 0;
-    switch (screen) {
-        case SCREEN_DASHBOARD:   content_h = SP(690); break;
-        case SCREEN_PERFORMANCE: content_h = SP(1120); break;
-        case SCREEN_LATENCY:     content_h = SP(980); break;
-        case SCREEN_BENCHMARK:   content_h = SP(620); break;
-        case SCREEN_DIAGNOSTICS: content_h = SP(560) + SP(46) * (f32)diag_count; break;
-        case SCREEN_SETTINGS:    content_h = SP(1180); break;
-        case SCREEN_ABOUT:       content_h = SP(560); break;
-        default:                 content_h = SP(600); break;
-    }
+    // The scroll range comes from the height each screen reported on the last
+    // frame. The per-screen constants that used to live here (SP(690) for the
+    // dashboard) fell behind their layouts, which is why "QUICK PERFORMANCE" sat
+    // half outside the window with no way to scroll down to it.
+    f32 content_h = screen_content_h[screen];
+    if (content_h <= 0.0f) content_h = view.h;      // first frame: nothing to scroll yet
     f32 max_scroll = mob_max(content_h - view.h, 0.0f);
     f32* scroll = &screen_scroll[screen];
     if (view.contains(w.in.mouse_x, w.in.mouse_y)) {
@@ -112,17 +113,25 @@ void App::draw_shell(Rect full) {
 
     ui.push_clip(view.x, view.y, view.w, view.h);
     Rect page{ view.x, view.y - *scroll, view.w, content_h };
+    f32 used = 0.0f;
     switch (screen) {
-        case SCREEN_DASHBOARD:   draw_dashboard(page); break;
-        case SCREEN_PERFORMANCE: draw_performance(page); break;
-        case SCREEN_LATENCY:     draw_latency(page); break;
-        case SCREEN_BENCHMARK:   draw_benchmark(page); break;
-        case SCREEN_DIAGNOSTICS: draw_diagnostics(page); break;
-        case SCREEN_SETTINGS:    draw_settings(page); break;
-        case SCREEN_ABOUT:       draw_about(page); break;
+        case SCREEN_DASHBOARD:   used = draw_dashboard(page); break;
+        case SCREEN_PERFORMANCE: used = draw_performance(page); break;
+        case SCREEN_LATENCY:     used = draw_latency(page); break;
+        case SCREEN_BENCHMARK:   used = draw_benchmark(page); break;
+        case SCREEN_DIAGNOSTICS: used = draw_diagnostics(page); break;
+        case SCREEN_SETTINGS:    used = draw_settings(page); break;
+        case SCREEN_ABOUT:       used = draw_about(page); break;
         default: break;
     }
     ui.pop_clip();
+    // Re-measure for the next frame: a screen that grows simply gets a bigger
+    // scroll range, so nothing can be clipped out of reach again.
+    if (used > 0.0f) {
+        screen_content_h[screen] = used + pad;
+        content_h = screen_content_h[screen];
+        *scroll = mob_clamp(*scroll, 0.0f, mob_max(content_h - view.h, 0.0f));
+    }
     if (max_scroll > 0) {
         Rect track{ view.r() + SP(6), view.y, SP(4), view.h };
         scrollbar(&w, track, *scroll, content_h, view.h);
@@ -144,29 +153,37 @@ void App::draw_shell(Rect full) {
 
 void App::draw_sidebar(Rect r) {
     // Brand: symbol + wordmark. No gradient, no glow: the mark is the identity.
-    ui.icon(ICON_LOGO_MARK, r.x + SP(20), r.y + SP(20), SP(26), theme.accent, 1.9f);
-    ui.text(Str("MOBILADOR"), r.x + SP(56), r.y + SP(24), FONT_TITLE, theme.text);
-    ui.text(Str("USB STREAMING"), r.x + SP(56), r.y + SP(44), FONT_TINY, theme.text_faint);
+    // Brand block: mark inside a soft accent square, wordmark beside it.
+    Rect mark{ r.x + SP(16), r.y + SP(18), SP(34), SP(34) };
+    ui.rrect(mark.x, mark.y, mark.w, mark.h, SP(10), theme.accent.with_a(0.14f));
+    ui.icon_centered(ICON_LOGO_MARK, mark.cx(), mark.cy(), SP(20), theme.accent, 1.9f);
+    ui.text(Str("MOBILADOR"), mark.r() + SP(12), mark.y + SP(3), FONT_TITLE, theme.text);
+    ui.text(Str("USB STREAMING"), mark.r() + SP(12), mark.y + SP(23), FONT_TINY, theme.text_faint);
 
     f32 y = r.y + SP(84);
+    ui.text("NAVEGACAO", r.x + SP(26), y, FONT_TINY, theme.text_faint);
+    y += SP(24);
     for (u32 i = 0; i < SCREEN_COUNT; ++i) {
-        Rect item{ r.x + SP(10), y, r.w - SP(20), SP(38) };
+        Rect item{ r.x + SP(12), y, r.w - SP(24), SP(40) };
         bool active = screen == (ScreenId)i;
+        bool hot = item.contains(w.in.mouse_x, w.in.mouse_y);
+        const f32 rad = item.h * 0.5f;
         if (active) {
-            ui.rrect(item.x, item.y, item.w, item.h, SP(6), theme.accent_soft(0.16f));
-            ui.rect(item.x, item.y + SP(6), SP(2), item.h - SP(12), theme.accent);
-        } else if (item.contains(w.in.mouse_x, w.in.mouse_y)) {
-            ui.rrect(item.x, item.y, item.w, item.h, SP(6), theme.surface_2);
+            // Filled accent pill with dark text: the selected item is the only
+            // saturated surface on the rail.
+            ui.rrect(item.x, item.y, item.w, item.h, rad, theme.accent);
+        } else if (hot) {
+            ui.rrect(item.x, item.y, item.w, item.h, rad, theme.surface_2);
         }
-        ui.icon_centered(kScreenIcons[i], item.x + SP(20), item.cy(), SP(16),
-                         active ? theme.accent : theme.text_dim);
-        ui.text(Str(kScreenTitles[i]), item.x + SP(40), item.cy() - ui.line_h(FONT_BODY) * 0.5f,
-                FONT_BODY, active ? theme.text : theme.text_dim);
-        if (w.in.pressed[MOB_MB_LEFT] && item.contains(w.in.mouse_x, w.in.mouse_y)) {
+        Col fg = active ? theme.on_accent : (hot ? theme.text : theme.text_dim);
+        ui.icon_centered(kScreenIcons[i], item.x + SP(22), item.cy(), SP(16), fg, 1.7f);
+        ui.text(Str(kScreenTitles[i]), item.x + SP(44), item.cy() - ui.line_h(FONT_BODY) * 0.5f,
+                active ? FONT_LABEL : FONT_BODY, fg);
+        if (w.in.pressed[MOB_MB_LEFT] && hot) {
             screen = (ScreenId)i;
             if (screen == SCREEN_DIAGNOSTICS) run_diagnostics(true);
         }
-        y += SP(42);
+        y += SP(44);
     }
 
     // ---- connection block (bottom of the rail)
@@ -209,13 +226,28 @@ void App::draw_topbar(Rect r) {
     if (g.clicked) set_game_mode(!game_mode);
     right -= SP(162);
 
-    // live readouts: only values that exist (measured) are shown
+    // Live readouts as chips, so they read as data instead of stray text. Only
+    // measured values appear: nothing here is invented.
     char buf[64];
-    snprintf(buf, sizeof(buf), "%.0f FPS", sampler.fps.display_fps);
-    ui.text(Str(buf), right - ui.measure(Str(buf), FONT_MONO_BOLD), r.cy() - SP(14), FONT_MONO_BOLD, theme.text);
-    snprintf(buf, sizeof(buf), "%.1f ms", sampler.metrics[MET_TOTAL_US].last / 1000.0f);
-    ui.text(Str(buf), right - ui.measure(Str(buf), FONT_MONO), r.cy() + SP(2), FONT_MONO, theme.text_dim);
-    right -= SP(120);
+    {
+        snprintf(buf, sizeof(buf), "%.0f FPS", sampler.fps.display_fps);
+        f32 w1 = ui.measure(Str(buf), FONT_MONO_BOLD) + SP(26);
+        snprintf(buf, sizeof(buf), "%.1f ms", sampler.metrics[MET_TOTAL_US].last / 1000.0f);
+        f32 w2 = ui.measure(Str(buf), FONT_MONO) + SP(26);
+        const f32 ch = SP(30);
+        Rect chip2{ right - w2, r.cy() - ch * 0.5f, w2, ch };
+        ui.rrect(chip2.x, chip2.y, chip2.w, chip2.h, ch * 0.5f, theme.surface_2);
+        snprintf(buf, sizeof(buf), "%.1f ms", sampler.metrics[MET_TOTAL_US].last / 1000.0f);
+        ui.text(Str(buf), chip2.cx(), chip2.cy() - ui.line_h(FONT_MONO) * 0.5f, FONT_MONO,
+                theme.text_dim, ALIGN_CENTER);
+        Rect chip1{ chip2.x - SP(8) - w1, chip2.y, w1, ch };
+        ui.rrect(chip1.x, chip1.y, chip1.w, chip1.h, ch * 0.5f,
+                 theme.accent.with_a(0.14f));
+        snprintf(buf, sizeof(buf), "%.0f FPS", sampler.fps.display_fps);
+        ui.text(Str(buf), chip1.cx(), chip1.cy() - ui.line_h(FONT_MONO_BOLD) * 0.5f, FONT_MONO_BOLD,
+                theme.accent, ALIGN_CENTER);
+        right = chip1.x - SP(12);
+    }
 
     bool ok = session_running();
     badge(&w, ok ? "USB" : "IDLE", right - SP(54), r.cy() - SP(10), ok ? theme.ok : theme.text_faint);
@@ -224,7 +256,7 @@ void App::draw_topbar(Rect r) {
 // ===========================================================================
 //  DASHBOARD
 // ===========================================================================
-void App::draw_dashboard(Rect r) {
+f32 App::draw_dashboard(Rect r) {
     const f32 gap = SP(16);
     f32 half = (r.w - gap) * 0.5f;
 
@@ -253,7 +285,6 @@ void App::draw_dashboard(Rect r) {
                       s.hovered);
 
     // ---- quick stats grid
-    f32 y = st.b() + gap;
     char v1[32], v2[32], v3[32], v4[32], v5[32], v6[32];
     snprintf(v1, sizeof(v1), "%.0f", sampler.fps.source_fps);
     snprintf(v2, sizeof(v2), "%.0f", sampler.fps.stream_fps);
@@ -262,33 +293,27 @@ void App::draw_dashboard(Rect r) {
     snprintf(v5, sizeof(v5), "%.0f", sampler.sys.gpu_percent);
     snprintf(v6, sizeof(v6), "%.0f", sampler.sys.cpu_percent);
 
-    struct { const char* label; Str val; const char* unit; IconId icon; Col c; } tiles[6] = {
-        { "FPS ORIGEM",  Str(v1), "",    ICON_FPS,        theme.text },
-        { "FPS STREAM",  Str(v2), "",    ICON_USB,        theme.text },
-        { "FPS DISPLAY", Str(v3), "",    ICON_MONITOR,    theme.text },
-        { "LATENCIA",    Str(v4), "ms",  ICON_LATENCY,    theme.accent },
-        { "GPU",         Str(v5), "%",   ICON_GPU,        theme.text },
-        { "CPU",         Str(v6), "%",   ICON_CPU,        theme.text },
+    // One card, six compartments, hairline separators: the metric block of the
+    // product reference. The numbers carry the weight, the captions recede.
+    MetricCell cells[6] = {
+        { "FPS ORIGEM",  Str(v1), Str(""),   ICON_FPS,     theme.text },
+        { "FPS STREAM",  Str(v2), Str(""),   ICON_USB,     theme.text },
+        { "FPS DISPLAY", Str(v3), Str(""),   ICON_MONITOR, theme.text },
+        { "LATENCIA",    Str(v4), Str("ms"), ICON_LATENCY, theme.accent },
+        { "GPU",         Str(v5), Str("%"),  ICON_GPU,     theme.text },
+        { "CPU",         Str(v6), Str("%"),  ICON_CPU,     theme.text },
     };
-    // Six tiles, three per row. This used to use the two-column geometry
-    // (half * 1.5 wide, half * 1.5 + gap/2 pitch) for three columns: the first
-    // tile took 74% of the row, the second ran past the right edge of the
-    // window and the third was never on screen at all - FPS STREAM and GPU
-    // appeared sliced down the middle and FPS DISPLAY and CPU did not exist.
-    const f32 tile_gap = SP(10);
-    const f32 tile_w = (r.w - tile_gap * 2.0f) / 3.0f;
-    const f32 tile_h = stat_tile_height(&w);
+    // Two rows of three compartments inside one card. The geometry comes from
+    // metric_grid_height(), never from the two-column half width: deriving the
+    // tile size from `half` (the bug in 1.0.0-1.0.5) pushed two of every three
+    // tiles past the right edge of the window.
     const f32 tiles_top = r.y + SP(112) + gap;
-    for (u32 i = 0; i < 6; ++i) {
-        u32 col = i % 3, row = i / 3;
-        Rect t{ r.x + (f32)col * (tile_w + tile_gap),
-                tiles_top + (tile_h + tile_gap) * (f32)row, tile_w, tile_h };
-        stat_tile(&w, Str(tiles[i].label), tiles[i].val, Str(tiles[i].unit), t, tiles[i].icon, tiles[i].c);
-    }
+    Rect grid{ r.x, tiles_top, r.w, metric_grid_height(&w, 6, 3) };
+    metric_grid(&w, grid, cells, 6, 3);
 
     // ---- device information + pipeline
-    f32 ly = tiles_top + tile_h * 2.0f + tile_gap + gap;
-    Rect dc{ r.x, ly, half, SP(212) };
+    f32 ly = grid.b() + gap;
+    Rect dc{ r.x, ly, half, SP(226) };
     card(&w, dc);
     section_header(&w, "CELULAR", Rect{ dc.x + SP(16), dc.y + SP(10), dc.w - SP(32), SP(26) }, ICON_PHONE);
     const DeviceReport& d = mirror.device;
@@ -307,7 +332,7 @@ void App::draw_dashboard(Rect r) {
         kv_row(&w, Str(keys[i]), Str(v[i]), row, i == 2 ? (dev && adb.device()->usb ? theme.ok : theme.warn) : Col(-1, -1, -1, -1));
     }
 
-    Rect pc{ r.x + half + gap, ly, half, SP(212) };
+    Rect pc{ r.x + half + gap, ly, half, SP(226) };
     card(&w, pc);
     section_header(&w, "PIPELINE", Rect{ pc.x + SP(16), pc.y + SP(10), pc.w - SP(32), SP(26) }, ICON_LAYERS);
     struct { const char* k; MetricId m; } rows[6] = {
@@ -327,7 +352,7 @@ void App::draw_dashboard(Rect r) {
     ui.text(Str(fpsline), pc.x + SP(16), pc.b() - SP(24), FONT_SMALL, theme.text_faint);
 
     // ---- secondary actions
-    f32 ay = ly + SP(224);
+    f32 ay = ly + SP(238);
     const f32 bw = (r.w - gap * 3) / 4.0f;
     const char* labels[4] = { "DESEMPENHO", "LATENCIA", "CONFIGURACOES", "DIAGNOSTICO" };
     IconId icons[4] = { ICON_PERFORMANCE, ICON_LATENCY, ICON_SETTINGS, ICON_DIAGNOSTICS };
@@ -341,23 +366,38 @@ void App::draw_dashboard(Rect r) {
     }
 
     // ---- differential features
-    Rect fx{ r.x, ay + SP(52), r.w, SP(150) };
+    Rect fx{ r.x, ay + SP(52), r.w, SP(168) };
     card(&w, fx);
     section_header(&w, "RECURSOS RAPIDOS", Rect{ fx.x + SP(16), fx.y + SP(10), fx.w - SP(32), SP(26) }, ICON_BOLT);
     Rect q1{ fx.x + SP(16), fx.y + SP(46), (fx.w - SP(48)) * 0.5f, SP(44) };
     Rect q2{ q1.r() + SP(16), q1.y, q1.w, q1.h };
     Rect q3{ q1.x, q1.b() + SP(10), q1.w, q1.h };
     Rect q4{ q2.x, q3.y, q2.w, q3.h };
-    if (button_big(&w, "QUICK PERFORMANCE", ICON_BOLT, q1, BTN_SECONDARY, !session_running(),
+    // Both actions change the settings the next (or current) session uses and
+    // report the resulting numbers, instead of only re-reading diagnostics.
+    if (button_big(&w, "QUICK PERFORMANCE", ICON_BOLT, q1, BTN_PRIMARY, true,
                    Str("preset de menor latencia")).clicked) {
         settings.apply_preset(PRESET_ULTRA_LOW_LATENCY);
+        Settings::Caps caps;
+        collect_caps(&caps);
+        settings.hardware_acceleration = caps.hardware_decode;
+        settings.gpu_decoder = caps.hardware_decode;
+        settings.vsync = false;
+        settings.frame_pacing = false;
         on_settings_changed("quick_performance");
-        w.toast("QUICK PERFORMANCE ativado", theme.ok, ICON_BOLT, 3.0f);
+        char msg[176];
+        char fps_txt[16];
+        if (settings.target_fps) snprintf(fps_txt, sizeof(fps_txt), "%u fps", settings.target_fps);
+        else snprintf(fps_txt, sizeof(fps_txt), "MAX FPS");
+        snprintf(msg, sizeof(msg), "QUICK PERFORMANCE: %ux%u @ %s - decode %s",
+                 settings.resolution_w, settings.resolution_h, fps_txt,
+                 settings.gpu_decoder ? "na GPU" : "na CPU");
+        w.toast(msg, theme.ok, ICON_BOLT, 4.0f);
+        MOB_INFO("%s", msg);
     }
-    if (button_big(&w, "AUTO OPTIMIZE", ICON_WAND, q2, BTN_SECONDARY, false,
+    if (button_big(&w, "AUTO OPTIMIZE", ICON_WAND, q2, BTN_SECONDARY, true,
                    Str("analise do dispositivo + PC")).clicked) {
-        run_diagnostics(true);
-        w.toast("AUTO OPTIMIZE aplicado apos a analise", theme.accent, ICON_WAND, 3.5f);
+        apply_auto_optimize(true);
     }
     if (button_big(&w, "BENCHMARK", ICON_BENCHMARK, q3, BTN_SECONDARY, !session_running(),
                    Str("compara configuracoes reais")).clicked) {
@@ -367,14 +407,31 @@ void App::draw_dashboard(Rect r) {
                    Str("performance log + diagnostico")).clicked) {
         show_log = !show_log;
     }
+    return fx.b() - r.y;
 }
 
 // ===========================================================================
 //  PERFORMANCE
 // ===========================================================================
-void App::draw_performance(Rect r) {
+f32 App::draw_performance(Rect r) {
     const f32 gap = SP(16);
     f32 y = r.y;
+
+    // ---- live strip: what the pipeline is doing right now
+    char p1[32], p2[32], p3[32], p4[32];
+    snprintf(p1, sizeof(p1), "%.0f", sampler.fps.display_fps);
+    snprintf(p2, sizeof(p2), "%.1f", sampler.metrics[MET_TOTAL_US].last / 1000.0f);
+    snprintf(p3, sizeof(p3), "%.0f", sampler.sys.gpu_percent);
+    snprintf(p4, sizeof(p4), "%.0f", sampler.sys.cpu_percent);
+    MetricCell pcells[4] = {
+        { "FPS DISPLAY", Str(p1), Str(""),   ICON_MONITOR, theme.text },
+        { "LATENCIA",    Str(p2), Str("ms"), ICON_LATENCY, theme.accent },
+        { "GPU",         Str(p3), Str("%"),  ICON_GPU,     theme.text },
+        { "CPU",         Str(p4), Str("%"),  ICON_CPU,     theme.text },
+    };
+    Rect pgr{ r.x, y, r.w, metric_grid_height(&w, 4, 4) };
+    metric_grid(&w, pgr, pcells, 4, 4);
+    y = pgr.b() + gap;
 
     // ---- presets
     Rect pr{ r.x, y, r.w, SP(96) };
@@ -402,8 +459,9 @@ void App::draw_performance(Rect r) {
     Rect a1{ au.x + SP(16), au.y + SP(12), (au.w - SP(48)) * 0.5f, SP(40) };
     Rect a2{ a1.r() + SP(16), a1.y, a1.w, a1.h };
     if (button(&w, "AUTO OPTIMIZE", a1, BTN_SECONDARY, ICON_WAND).clicked) {
-        run_diagnostics(true);
-        w.toast("Configuracao ajustada ao hardware detectado", theme.ok, ICON_WAND, 3.5f);
+        // Runs the real optimiser (resolution, fps, bitrate, codec, buffers,
+        // decode path) and applies the result to the live session.
+        apply_auto_optimize(true);
     }
     if (button(&w, "RESTAURAR PADROES", a2, BTN_GHOST, ICON_RESTORE).clicked) {
         settings.apply_preset(PRESET_BALANCED);
@@ -615,12 +673,15 @@ void App::draw_performance(Rect r) {
             w.toast("Perfil salvo", theme.ok, ICON_SAVE, 3.0f);
         }
     }
+
+    // Height actually used, so the shell can size the scroll range.
+    return apply.b() - r.y;
 }
 
 // ===========================================================================
 //  LATENCY ANALYZER
 // ===========================================================================
-void App::draw_latency(Rect r) {
+f32 App::draw_latency(Rect r) {
     const f32 gap = SP(16);
     f32 y = r.y;
 
@@ -729,12 +790,15 @@ void App::draw_latency(Rect r) {
         w.toast("Medicoes zeradas", theme.info, ICON_RESET, 2.0f);
     }
     if (button(&w, "BENCHMARK", b3, BTN_SECONDARY, ICON_BENCHMARK).clicked) screen = SCREEN_BENCHMARK;
+
+    // Height actually used, so the shell can size the scroll range.
+    return act.b() - r.y;
 }
 
 // ===========================================================================
 //  BENCHMARK
 // ===========================================================================
-void App::draw_benchmark(Rect r) {
+f32 App::draw_benchmark(Rect r) {
     const f32 gap = SP(16);
     Rect hdr{ r.x, r.y, r.w, SP(104) };
     card(&w, hdr, true);
@@ -792,6 +856,9 @@ void App::draw_benchmark(Rect r) {
         write_text_file("benchmark.csv", sb.str());
         a.shutdown();
     }
+
+    // Height actually used, so the shell can size the scroll range.
+    return ex.b() - r.y;
 }
 
 void App::bench_start() {
@@ -1038,7 +1105,7 @@ void App::build_diag_report() {
     a.shutdown();
 }
 
-void App::draw_diagnostics(Rect r) {
+f32 App::draw_diagnostics(Rect r) {
     const f32 gap = SP(12);
     Rect hdr{ r.x, r.y, r.w, SP(58) };
     card(&w, hdr, true);
@@ -1098,6 +1165,9 @@ void App::draw_diagnostics(Rect r) {
                  (unsigned long long)(l.t_ms % 1000), l.text);
         ui.text_ellipsis(Str(line), lg.x + SP(16), lg.y + SP(40) + SP(13) * (f32)i, lg.w - SP(32), FONT_TINY, c);
     }
+
+    // Height actually used, so the shell can size the scroll range.
+    return lg.b() - r.y;
 }
 
 } // namespace mob

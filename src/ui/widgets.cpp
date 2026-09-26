@@ -148,7 +148,8 @@ BtnResult button(WidgetCtx* c, Str label, Rect r, BtnKind kind, IconId icon, boo
     res.held = pressed_now;
 
     Theme* th = c->theme;
-    f32 radius = c->ui->sp(6);
+    f32 radius = c->ui->sp(10);   // same corner as button_big: one control shape
+
     Col fill = btn_fill(c, kind, hover, pressed_now);
     if (!enabled) fill = fill.mul_a(1.0f).mix(th->surface_2, 0.6f).with_a(kind == BTN_PRIMARY ? 0.35f : 1.0f);
 
@@ -217,10 +218,11 @@ BtnResult button_big(WidgetCtx* c, Str label, IconId icon, Rect r, BtnKind kind,
     }
     res.hovered = hovered;
     Theme* th = c->theme;
-    f32 radius = c->ui->sp(8);
-    Col base = kind == BTN_PRIMARY ? th->accent : (kind == BTN_DANGER ? th->err : th->surface_2);
+    f32 radius = c->ui->sp(10);
+    Col base = kind == BTN_PRIMARY ? th->accent : (kind == BTN_DANGER ? th->err : th->surface_3);
+    if (kind == BTN_GHOST) base = th->surface.with_a(0.0f);
     if (!enabled) base = base.mix(th->surface_2, 0.65f);
-    Col fill = base.mix(base.lighten(0.16f), hover * (pressed_now ? 0.35f : 1.0f));
+    Col fill = base.mix(base.lighten(kind == BTN_GHOST ? 0.06f : 0.16f), hover * (pressed_now ? 0.35f : 1.0f));
     f32 oy = pressed_now ? c->ui->sp(1) : 0.0f;
 
     // Primary CTA gets a soft halo drawn as two translucent rounded rects
@@ -286,15 +288,16 @@ bool toggle(WidgetCtx* c, Str label, Rect r, bool* value, bool enabled) {
 
 bool segmented(WidgetCtx* c, Str label, Rect r, const char* const* items, u32 count, u32* index) {
     Theme* th = c->theme;
-    f32 pad = c->ui->sp(3);
-    c->ui->rrect(r.x, r.y, r.w, r.h, c->ui->sp(6), th->surface_2);
-    c->ui->rrect_border(r.x, r.y, r.w, r.h, c->ui->sp(6), 1.0f, th->border);
+    f32 pad = c->ui->sp(4);
+    const f32 rad = r.h * 0.5f;
+    c->ui->rrect(r.x, r.y, r.w, r.h, rad, th->surface_2);
+    c->ui->rrect_border(r.x, r.y, r.w, r.h, rad, 1.0f, th->border);
     f32 seg_w = (r.w - pad * 2) / (f32)count;
     bool changed = false;
     // sliding indicator
     f32 target = pad + (f32)(*index) * seg_w;
     f32 ind = c->anim(w_id2(label, 7717), target, 160.0f);
-    c->ui->rrect(r.x + ind, r.y + pad, seg_w, r.h - pad * 2, c->ui->sp(4), th->accent.with_a(0.9f));
+    c->ui->rrect(r.x + ind, r.y + pad, seg_w, r.h - pad * 2, (r.h - pad * 2) * 0.5f, th->accent);
 
     for (u32 i = 0; i < count; ++i) {
         Rect sr{ r.x + pad + seg_w * i, r.y + pad, seg_w, r.h - pad * 2 };
@@ -303,7 +306,7 @@ bool segmented(WidgetCtx* c, Str label, Rect r, const char* const* items, u32 co
         if (hovered) c->hot_next = id;
         if (hovered && c->in.pressed[MOB_MB_LEFT]) { if (*index != i) changed = true; *index = i; }
         bool sel = (*index == i);
-        Col fg = sel ? th->accent.readable_on() : th->text_dim;
+        Col fg = sel ? th->accent.readable_on() : th->text_dim.mix(th->text, hovered ? 0.6f : 0.0f);
         c->ui->text(Str(items[i]), sr.cx(), sr.y + (sr.h - c->ui->line_h(FONT_LABEL)) * 0.5f,
                     FONT_LABEL, fg, ALIGN_CENTER);
     }
@@ -534,23 +537,29 @@ bool keybind_field(WidgetCtx* c, Str label, Rect r, u32* vk, bool* waiting) {
 // ================================================================ display
 void section_header(WidgetCtx* c, Str title, Rect r, IconId icon) {
     Theme* th = c->theme;
+    // Quiet caption instead of a headline with a rule under it: the eye should
+    // land on the numbers, not on the labels (the reference does exactly this).
     f32 x = r.x;
+    const f32 lh = c->ui->line_h(FONT_TINY);
     if (icon != ICON_NONE) {
-        c->ui->icon(icon, x, r.cy() - c->ui->sp(8), c->ui->sp(16), th->accent, 1.7f);
-        x += c->ui->sp(24);
+        c->ui->icon(icon, x, r.cy() - c->ui->sp(7), c->ui->sp(14),
+                    th->text_faint.mix(th->accent, 0.55f), 1.6f);
+        x += c->ui->sp(20);
     }
-    c->ui->text(title, x, r.cy() - c->ui->line_h(FONT_TITLE) * 0.5f, FONT_TITLE, th->text);
-    f32 tw = c->ui->measure(title, FONT_TITLE);
-    f32 line_x = x + tw + c->ui->sp(14);
-    if (line_x < r.r()) {
-        c->ui->rect(line_x, r.cy(), r.r() - line_x, 1.0f, th->border);
-    }
+    c->ui->text(title, x, r.cy() - lh * 0.5f, FONT_TINY, th->text_dim);
 }
 
 void card(WidgetCtx* c, Rect r, bool elevated) {
     Theme* th = c->theme;
-    c->ui->rrect(r.x, r.y, r.w, r.h, c->ui->sp(8), elevated ? th->surface_2 : th->surface);
-    c->ui->rrect_border(r.x, r.y, r.w, r.h, c->ui->sp(8), 1.0f, th->border);
+    // Soft 14 px corners and a single hairline border: depth comes from the
+    // surface step and the border, never from a shadow (which would cost a blur
+    // pass every frame). The top edge gets a barely-there highlight so cards read
+    // as raised on the near-black background.
+    const f32 rad = c->ui->sp(14);
+    c->ui->rrect(r.x, r.y, r.w, r.h, rad, elevated ? th->surface_2 : th->surface);
+    if (!th->is_light())
+        c->ui->rrect_border(r.x, r.y, r.w, r.h, rad, 1.0f, th->text.with_a(0.05f));
+    c->ui->rrect_border(r.x, r.y, r.w, r.h, rad, 1.0f, th->border);
 }
 
 void divider(WidgetCtx* c, f32 x, f32 y, f32 w) {
@@ -602,6 +611,60 @@ void meter_row(WidgetCtx* c, Str lb, f32 t, Str value_text, Rect r, Col fill) {
 f32 stat_tile_height(WidgetCtx* c) {
     const f32 pad = c->ui->sp(14);
     return pad + c->ui->line_h(FONT_TINY) + c->ui->line_h(FONT_DISPLAY) + pad;
+}
+
+f32 metric_grid_height(WidgetCtx* c, u32 count, u32 cols) {
+    if (!cols) cols = 1;
+    const u32 rows = (count + cols - 1) / cols;
+    const f32 cell = c->ui->sp(14) + c->ui->line_h(FONT_TINY) + c->ui->sp(8) +
+                     c->ui->line_h(FONT_H1) + c->ui->sp(14);
+    return cell * (f32)rows;
+}
+
+void metric_grid(WidgetCtx* c, Rect r, const MetricCell* cells, u32 count, u32 cols) {
+    if (!cells || !count) return;
+    if (!cols) cols = 1;
+    Theme* th = c->theme;
+    card(c, r, true);
+    const u32 rows = (count + cols - 1) / cols;
+    const f32 cw = r.w / (f32)cols;
+    const f32 ch = r.h / (f32)rows;
+
+    // Hairline separators, skipped on the outer edges: the grid reads as one
+    // surface made of compartments instead of a pile of boxes.
+    for (u32 i = 1; i < cols; ++i) {
+        f32 x = r.x + cw * (f32)i;
+        c->ui->rect(x, r.y + c->ui->sp(14), 1.0f, r.h - c->ui->sp(28), th->border);
+    }
+    for (u32 j = 1; j < rows; ++j) {
+        f32 y = r.y + ch * (f32)j;
+        c->ui->rect(r.x + c->ui->sp(14), y, r.w - c->ui->sp(28), 1.0f, th->border);
+    }
+
+    const f32 pad = c->ui->sp(18);
+    for (u32 i = 0; i < count; ++i) {
+        const u32 col = i % cols, row = i / cols;
+        const f32 cx = r.x + cw * (f32)col;
+        const f32 cy = r.y + ch * (f32)row;
+        const f32 value_lh = c->ui->line_h(FONT_H1);
+
+        f32 tx = cx + pad;
+        if (cells[i].icon != ICON_NONE) {
+            c->ui->icon(cells[i].icon, tx, cy + pad + c->ui->sp(1), c->ui->sp(13), th->text_faint, 1.5f);
+            tx += c->ui->sp(19);
+        }
+        c->ui->text(Str(cells[i].label), tx, cy + pad, FONT_TINY, th->text_faint);
+
+        // Value on the baseline of the compartment, unit trailing it in the
+        // caption style: "4,095" then a small "fps".
+        const f32 vy = cy + ch - pad - value_lh;
+        c->ui->text(cells[i].value, cx + pad, vy, FONT_H1, cells[i].color);
+        if (!cells[i].unit.empty()) {
+            const f32 vw = c->ui->measure(cells[i].value, FONT_H1);
+            c->ui->text(cells[i].unit, cx + pad + vw + c->ui->sp(6),
+                        vy + value_lh - c->ui->line_h(FONT_SMALL), FONT_SMALL, th->text_faint);
+        }
+    }
 }
 
 void stat_tile(WidgetCtx* c, Str lb, Str value, Str unit, Rect r, IconId icon, Col value_color) {

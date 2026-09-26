@@ -369,7 +369,7 @@ bool Settings::load(const char* path) {
         if (s) theme_mode = s->ieq("light") ? THEME_LIGHT : (s->ieq("amoled") ? THEME_AMOLED : THEME_DARK);
     }
     accent_rgb = get_u32("accent_rgb", accent_rgb);
-    get_str("accent_name", accent_name, sizeof(accent_name), "Blue");
+    get_str("accent_name", accent_name, sizeof(accent_name), "Green");
     animations = get_bool("animations", animations);
     ui_scale = get_f32("ui_scale", ui_scale);
 

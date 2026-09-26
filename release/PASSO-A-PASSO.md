@@ -1,4 +1,4 @@
-# MOBILADOR 1.0.0 — PASSO A PASSO DA INSTALAÇÃO
+# MOBILADOR 1.0.7 — PASSO A PASSO DA INSTALAÇÃO
 
 Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
@@ -7,7 +7,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 ## ANTES DE COMEÇAR — o que você precisa
 
 - Um PC com **Windows 10 ou 11, 64 bits**.
-- Acesso ao ficheiro `Mobilador-Setup-1.0.6.exe` (41,9 MB).
+- Acesso ao ficheiro `Mobilador-Setup-1.0.7.exe` (41,9 MB).
 - **Não** precisa de: administrador, Java, Visual C++ Redistributable, Android SDK,
   iTunes, ou qualquer driver extra.
 
@@ -15,7 +15,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 1 — Baixar o instalador para o PC
 
-1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.6.exe`
+1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.7.exe`
    (é o arquivo que está no visualizador de ficheiros).
 2. Clique em **Download** / **Baixar**.
 3. O Windows vai guardar em `C:\Users\<seu_nome>\Downloads`.
@@ -32,13 +32,13 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 2. Digite (troque o nome da pasta se não for Downloads):
 
    ```
-   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.6.exe" SHA256
+   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.7.exe" SHA256
    ```
 
 3. Compare a linha de números com esta:
 
    ```
-   8d48baa26d30c933404564e213d2650cf86ad06c81b042dbd5841f5e46ef4410
+   1bbe861a310f0d9c4f5eb1828d0fcc29929ce2073bd71ab07889eaeaaeda6996
    ```
 
    Tem de ser **igual, carácter por carácter**. Se for diferente, o download
@@ -48,7 +48,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 3 — Executar o instalador
 
-1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.6.exe`.
+1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.7.exe`.
 2. O Windows vai mostrar a tela azul **"O Windows protegeu o seu PC"**
    (SmartScreen). Isso acontece porque o programa não tem assinatura digital
    paga — é normal em programas novos.
@@ -138,14 +138,14 @@ Ele remove tudo e pergunta se você quer apagar também os perfis salvos.
 Se quiser só usar sem deixar rastro no PC:
 
 ```
-Mobilador-Setup-1.0.6.exe --portable
+Mobilador-Setup-1.0.7.exe --portable
 ```
 
 Ele extrai tudo para `Mobilador\` ao lado do `.exe` e fecha — sem atalhos, sem
 registo, sem instalação. Para escolher a pasta:
 
 ```
-Mobilador-Setup-1.0.6.exe --portable D:\Mobila
+Mobilador-Setup-1.0.7.exe --portable D:\Mobila
 ```
 
 ---

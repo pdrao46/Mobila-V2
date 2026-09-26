@@ -275,7 +275,6 @@ static Str quote_arg(StrBuilder* sb, Str a) {
 
 bool Adb::run_capture(Str args, Str* out, u32 timeout_ms) {
     if (!exe[0]) return false;
-    Str out_s;
     Str result;
     ChildPipe pipe{};
     ProcessHandle proc{};

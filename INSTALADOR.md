@@ -3,19 +3,21 @@
 O instalador **não** fica no código-fonte — ele é um artefacto binário construído pelo
 pipeline deste repositório. Está publicado aqui mesmo, nesta pasta:
 
-## ➡️ [`release/Mobilador-Setup-1.0.6.exe`](release/Mobilador-Setup-1.0.6.exe) — 41,9 MB
+## ➡️ [`release/Mobilador-Setup-1.0.7.exe`](release/Mobilador-Setup-1.0.7.exe) — 41,9 MB
 
 Clique no link acima **e depois no botão de download** que aparece no canto direito da
 página (ícone ⬇ *Download* / *Download raw file*).
 
 | | |
 |---|---|
-| **Ficheiro** | `Mobilador-Setup-1.0.6.exe` |
-| **Tamanho** | 43 906 371bytes (41,9 MB) |
-| **SHA-256** | `8d48baa26d30c933404564e213d2650cf86ad06c81b042dbd5841f5e46ef4410` |
+| **Ficheiro** | `Mobilador-Setup-1.0.7.exe` |
+| **Tamanho** | 43 910 979 bytes (41,9 MB) |
+| **SHA-256** | `1bbe861a310f0d9c4f5eb1828d0fcc29929ce2073bd71ab07889eaeaaeda6996` |
 | **Sistema** | Windows 10/11, 64 bits |
 | **Requisitos** | nenhum — sem Java, sem Visual C++, sem Android SDK, sem administrador |
 
+> *As notas estão por ordem crescente de versão; a última é a que está publicada.*
+>
 > **Versão 1.0.1** — corrige um bug da 1.0.0 que impedia a instalação: a
 > pasta de destino era testada antes de ser criada, então todo o
 > mundo recebia `[ERRO] nao foi possivel criar a pasta de instalacao
@@ -55,8 +57,41 @@ página (ícone ⬇ *Download* / *Download raw file*).
 > empilhados pelas alturas de linha reais. E o `"%.2fx x"` do controlo
 > deslizante imprimia `1.00x x`.
 >
-> O `tools/check_ui_invariants.py` cobre agora estes quatro casos (25
-> verificações no total, todas validadas por sabotagem).
+> O `tools/check_ui_invariants.py` cobre agora estes quatro casos.
+
+> **Versão 1.0.7** — nova identidade visual (verde sobre quase-preto), rolagem
+> em todas as abas e **todos** os botões a fazer o que prometem.
+>
+> **1. Nada mais fica cortado.** Cada ecrã (`draw_dashboard`, `draw_performance`,
+> `draw_latency`, `draw_benchmark`, `draw_diagnostics`, `draw_settings`,
+> `draw_about`) devolve agora **a altura que realmente desenhou**, e a barra de
+> rolagem é calculada a partir daí (`screen_content_h[tela]`). As constantes
+> fixas por tela (`SP(690)` no painel) foram removidas — eram a razão por que o
+> `QUICK PERFORMANCE` e o `AUTO OPTIMIZE` ficavam a meio do botão, sem forma de
+> descer.
+>
+> **2. Todos os botões funcionam, a otimizar a sério.**
+> `QUICK PERFORMANCE` aplica o preset de menor latência **e** as capacidades
+> reais do conjunto (descodificação na GPU/CPU, vsync, frame pacing) e mostra o
+> resultado (`1920x1080 @ 120 fps - decode na GPU`). `AUTO OPTIMIZE` passa a
+> correr o otimizador de verdade (`settings.auto_optimize()` com as capacidades
+> medidas do PC e do celular) e só depois o diagnóstico — antes apenas relia o
+> diagnóstico e não mudava nada. `RESTAURAR PADROES`, `BENCHMARK`, `EXPORTAR
+> CSV`, `RESETAR MEDICOES`, `SALVAR`/`COPIAR` do diagnóstico, presets, grupos,
+> controlos deslizantes, listas e interruptores foram todos revistos um a um.
+> `tools/check_ui_invariants.py` ganhou uma verificação que falha se algum
+> controlo for desenhado sem tratamento de clique (com auto-teste, para a
+> verificação não poder passar em falso).
+>
+> **3. Design de produto.** Paleta escura `#0A0E14 / #111823 / #172030 /
+> #1F2A3A` com acento **verde `#22C55E`** por omissão (os 8 presets continuam
+> disponíveis), barra lateral com o item ativo em pílula cheia e o logotipo num
+> quadrado suave, cartão de métricas com separadores finos e números grandes,
+> cartões de 14 px, botões de 10 px, pílulas no topo com os valores medidos e um
+> brilho ténue do acento sob a barra superior.
+>
+> **4. Verificação.** Compilação sem um único aviso (`-Wall -Wextra`), 146 testes
+> automáticos e 36 verificações de UI/entrada (todas com teste negativo).
 
 ## Como instalar
 
@@ -66,7 +101,7 @@ página (ícone ⬇ *Download* / *Download raw file*).
 3. Clique em **INSTALAR**.
 4. Abra o **Mobilador** e ligue a **Depuração USB** no telemóvel.
 
-> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.6.exe --portable [pasta]`
+> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.7.exe --portable [pasta]`
 
 ## Guias
 

@@ -116,8 +116,8 @@ struct Settings {
 
     // ---------------- appearance
     ThemeMode theme_mode = THEME_DARK;
-    u32  accent_rgb = 0x4C8DFF;
-    char accent_name[24] = "Blue";
+    u32  accent_rgb = 0x22C55E;
+    char accent_name[24] = "Green";
     bool animations = true;
     f32  ui_scale = 1.0f;
 

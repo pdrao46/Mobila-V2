@@ -10,8 +10,9 @@
 //      NOT with drop shadows (shadows add overdraw and blur cost every frame).
 //    * Motion: 120-180 ms, ease-out, and only where it communicates state.
 //      In Game Mode every transition duration collapses to 0.
-//    * Spacing scale: 4, 8, 12, 16, 20, 24, 32. Radii: 4 (chips), 6 (inputs),
-//      8 (cards), 12 (modals). Stroke: 1 px borders, 1.5 px icons in lists.
+//    * Spacing scale: 4, 8, 12, 16, 20, 24, 32. Radii: 999 (pills: navigation
+//      items, switches), 10 (buttons, inputs, tiles), 14 (cards). Stroke: 1 px
+//      hairlines, 1.75 px icons in lists.
 // ============================================================================
 #pragma once
 

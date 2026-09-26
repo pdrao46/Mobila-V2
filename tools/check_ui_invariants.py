@@ -186,19 +186,127 @@ check("the installer ships adb.exe under tools/",
       "payload layout and find_adb() have to agree, or the app cannot reach a phone")
 
 # ---------------------------------------------------------------------------
-# 8. the dashboard tiles are a three-column grid sized from the real metrics
+# 8. the dashboard is one metric card, not a pile of boxes: the reference
+#    layout puts the numbers in a grid whose height is computed, never guessed
 # ---------------------------------------------------------------------------
 screens = strip_comments(read("src/ui/app_screens.cpp"))
-check("the dashboard uses three tile columns",
-      re.search(r"\(r\.w - tile_gap \* 2\.0f\) / 3\.0f", screens) is not None
-      and "half * 1.5f" not in screens,
-      "reusing the two-column geometry for three columns pushed two of every "
-      "three tiles off the right edge of the window")
-check("the tile height comes from the font metrics",
-      "stat_tile_height(&w)" in screens,
-      "a fixed 70 px tile cut 24 px off the bottom of FONT_DISPLAY numbers")
-check("stat_tile bottom-aligns its value",
-      "r.b() - pad - value_lh" in read("src/ui/widgets.cpp"))
+check("the dashboard draws its six metrics in one grid card",
+      "metric_grid(&w, grid, cells, 6, 3)" in screens
+      and "MetricCell cells[6]" in screens,
+      "the reference layout groups the numbers in one card with hairline "
+      "separators; six loose tiles read as a pile of boxes")
+check("the grid height comes from metric_grid_height()",
+      "metric_grid_height(&w, 6, 3)" in screens,
+      "a hand-written card height is what clipped QUICK PERFORMANCE out of "
+      "the window in 1.0.6")
+check("no tile geometry derived from the two-column half width",
+      "half * 1.5f" not in screens,
+      "the two-column geometry pushed two of every three tiles past the "
+      "right edge of the window")
+check("the performance strip reuses the same grid",
+      "metric_grid(&w, pgr, pcells, 4, 4)" in screens)
+widgets_src = strip_comments(read("src/ui/widgets.cpp"))
+check("metric_grid separates its compartments with hairlines",
+      "th->border" in widgets_src
+      and re.search(r"void metric_grid\(", widgets_src) is not None
+      and re.search(r"for \(u32 i = 1; i < cols; \+\+i\)", widgets_src) is not None)
+check("cards keep one corner radius token",
+      re.search(r"const f32 rad = c->ui->sp\(14\);", widgets_src) is not None
+      and "sp(10);" in widgets_src)
+
+# ---------------------------------------------------------------------------
+# 9. scrolling: the range has to come from what the screens really drew
+# ---------------------------------------------------------------------------
+apph = strip_comments(read("src/ui/app.h"))
+missing = [fn for fn in ("draw_dashboard", "draw_performance", "draw_latency",
+                         "draw_benchmark", "draw_diagnostics", "draw_settings",
+                         "draw_about")
+           if not re.search(r"f32\s+%s\(" % fn, apph)]
+check("every screen reports the height it used", not missing,
+      "still void: %s - a screen that cannot report its height cannot be "
+      "scrolled to its end" % ", ".join(missing))
+check("the scroll range comes from the measured content height",
+      "screen_content_h[screen] = used + pad" in screens
+      and "max_scroll = mob_max(content_h - view.h, 0.0f)" in screens,
+      "the per-screen constants (SP(690) for the dashboard) fell behind the "
+      "layouts, so the last row was unreachable")
+check("no screen keeps a hard-coded content height",
+      re.search(r"content_h\s*=\s*SP\(", screens) is None,
+      "a constant here is the same bug in a different place")
+
+# ---------------------------------------------------------------------------
+# 10. every widget call is consumed: a bare button(...) statement is a control
+#     that draws, animates and does nothing when clicked
+# ---------------------------------------------------------------------------
+# Only widgets that return a click/hover result: drawing helpers (card, graph,
+# tooltip, metric_grid) are filtered out on purpose, they have nothing to
+# consume.
+WIDGETS = ("button", "button_icon", "button_big", "toggle", "segmented", "dropdown",
+           "slider", "checkbox", "keybind_field", "text_field", "list_row", "modal_begin")
+
+
+def statements(src):
+    """Split C++ into statements on top-level ';' and brace boundaries.
+
+    Parenthesis/bracket depth is tracked, brace depth is a hard boundary: no
+    statement continues across '{' or '}', which is what keeps a widget call
+    inside a lambda body from being glued onto the lambda's own statement.
+    """
+    out, buf = [], []
+    pdepth, line, start_line = 0, 1, 1
+    for ch in src:
+        if ch == "\n":
+            line += 1
+        elif ch in "([":
+            pdepth += 1
+        elif ch in ")]":
+            pdepth = max(0, pdepth - 1)
+        elif ch in "{}" and pdepth == 0:
+            txt = "".join(buf)
+            if txt.strip():
+                out.append((txt, start_line))
+            buf = []
+            start_line = line
+            continue
+        if ch == ";" and pdepth == 0:
+            txt = "".join(buf)
+            if txt.strip():
+                out.append((txt, start_line))
+            buf = []
+            start_line = line + 1
+            continue
+        if not buf and not ch.isspace():
+            start_line = line
+        buf.append(ch)
+    if "".join(buf).strip():
+        out.append(("".join(buf), start_line))
+    return out
+
+
+dropped = []
+for rel in ("src/ui/app_screens.cpp", "src/ui/app_settings_screens.cpp", "src/ui/app.cpp"):
+    src = strip_comments(read(rel))
+    for stmt, line in statements(src):
+        for wname in WIDGETS:
+            if not re.search(r"\b%s\s*\(" % wname, stmt):
+                continue
+            head = stmt[:stmt.index("%s(" % wname)]
+            consumed = ("if (" in head or "if(" in head or "while (" in head
+                        or "=" in head or head.strip().startswith("return"))
+            if not consumed:
+                dropped.append("%s:%d  %s" % (rel, line, stmt.strip().splitlines()[-1][:70]))
+            break
+check("no widget call is a bare statement", not dropped,
+      "these draw a control that never reacts: " + " | ".join(dropped[:4]))
+
+# the scanner above is itself checked: a check that cannot fail is noise
+_self = "void f() {\n  button(&w, \"X\", r, BTN_PRIMARY);\n  if (button(&w, \"Y\", r, BTN_PRIMARY).clicked) g();\n  BtnResult b = button(&w, \"Z\", r, BTN_PRIMARY);\n}\n"
+_self_bad = [st for st, _ln in statements(_self)
+             if re.search(r"\bbutton\s*\(", st)
+             and not ("if (" in st or "if(" in st or "=" in st)]
+check("the widget scanner catches a dropped call (self-test)",
+      len(_self_bad) == 1,
+      "the scanner found %d dropped calls in a sample that has exactly one" % len(_self_bad))
 
 # ---------------------------------------------------------------------------
 # 9. format strings must not carry a duplicated unit suffix
