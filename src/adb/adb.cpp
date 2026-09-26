@@ -594,14 +594,38 @@ bool build_server_module(const char* src_dir, const char* stubs_jar, const char*
     }
 
     // ---- dexing
+    //
+    // d8 takes class files as separate arguments. A wildcard is NOT expanded by
+    // CreateProcessW (and java.exe does not expand it either), so the list is
+    // built here, exactly like the source list above. Missing this made d8
+    // report "no class files" on builds that had compiled perfectly.
     {
-        StrBuilder d; d.init(&a, 512);
-        char dexargs[3072];
+        StrBuilder files; files.init(&a, 4096);
+        char craw[600];
+        snprintf(craw, sizeof(craw), "%s\\com\\mobilador\\server\\*.class", classes);
+        WIN32_FIND_DATAA cfd;
+        HANDLE ch = FindFirstFileA(craw, &cfd);
+        u32 nclasses = 0;
+        if (ch != INVALID_HANDLE_VALUE) {
+            do {
+                if (cfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+                char full[800];
+                snprintf(full, sizeof(full), "\"%s\\com\\mobilador\\server\\%s\" ", classes, cfd.cFileName);
+                files.append(Str(full));
+                ++nclasses;
+            } while (FindNextFileA(ch, &cfd));
+            FindClose(ch);
+        }
+        if (nclasses == 0) {
+            snprintf(log, log_cap, "javac reported success but produced no class files in %s", classes);
+            a.shutdown();
+            return false;
+        }
+
+        char dexargs[4096];
         snprintf(dexargs, sizeof(dexargs),
-                 "-jar \"%s\" --release --min-api 21 --lib \"%s\" --output \"%s\\build\" %s\\*.class",
-                 d8_jar, stubs_jar, paths->data_dir, classes);
-        d.append(Str(dexargs));
-        d.append(" ");  // d8 wants an explicit file list; see below
+                 "-jar \"%s\" --release --min-api 21 --lib \"%s\" --output \"%s\\build\" %s",
+                 d8_jar, stubs_jar, paths->data_dir, files.cstr());
         ChildPipe dp{}; ProcessHandle dproc{};
         if (!spawn(java.p, dexargs, &dp, &dproc, true, false)) {
             snprintf(log, log_cap, "d8 could not be started (missing tools/d8.jar?)");

@@ -70,15 +70,24 @@ if errorlevel 1 (
 )
 
 echo   dexing...
+rem d8 takes class files as separate arguments: build the list explicitly,
+rem because cmd.exe does not expand wildcards for external programs.
+set D8_FILES=
+for /r "%OUT%\classes" %%f in (*.class) do set D8_FILES=!D8_FILES! "%%f"
+if "!D8_FILES!"=="" (
+  echo ERROR: no compiled classes found.
+  exit /b 6
+)
+
 set D8_JAR=%ROOT%\tools\d8.jar
 if exist "%D8_JAR%" (
-  "%JAVA%" -jar "%D8_JAR%" --release --min-api 21 --lib "%ANDROID_JAR%" --output "%OUT%" "%OUT%\classes\com\mobilador\server\*.class"
+  "%JAVA%" -jar "%D8_JAR%" --release --min-api 21 --lib "%ANDROID_JAR%" --output "%OUT%" !D8_FILES!
 ) else (
   where d8 >nul 2>nul || (
     echo ERROR: neither tools\d8.jar nor d8 in PATH was found.
-    exit /b 6
+    exit /b 7
   )
-  d8 --release --min-api 21 --lib "%ANDROID_JAR%" --output "%OUT%" "%OUT%\classes\com\mobilador\server\*.class"
+  d8 --release --min-api 21 --lib "%ANDROID_JAR%" --output "%OUT%" !D8_FILES!
 )
 
 if not exist "%OUT%\classes.dex" (
