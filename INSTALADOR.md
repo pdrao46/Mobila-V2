@@ -11,8 +11,8 @@ página (ícone ⬇ *Download* / *Download raw file*).
 | | |
 |---|---|
 | **Ficheiro** | `Mobilador-Setup-1.0.6.exe` |
-| **Tamanho** | 43 905 841 bytes (41,9 MB) |
-| **SHA-256** | `f2f57c279bc9db0e8da0c3a051595b496a6e5e04f2739fe820044e83b960c989` |
+| **Tamanho** | 43 906 371bytes (41,9 MB) |
+| **SHA-256** | `8d48baa26d30c933404564e213d2650cf86ad06c81b042dbd5841f5e46ef4410` |
 | **Sistema** | Windows 10/11, 64 bits |
 | **Requisitos** | nenhum — sem Java, sem Visual C++, sem Android SDK, sem administrador |
 

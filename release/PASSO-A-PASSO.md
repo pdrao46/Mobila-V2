@@ -38,7 +38,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 3. Compare a linha de números com esta:
 
    ```
-   f2f57c279bc9db0e8da0c3a051595b496a6e5e04f2739fe820044e83b960c989
+   8d48baa26d30c933404564e213d2650cf86ad06c81b042dbd5841f5e46ef4410
    ```
 
    Tem de ser **igual, carácter por carácter**. Se for diferente, o download
