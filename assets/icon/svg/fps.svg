@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0.0 0.0 24.0 24.0">
+  <path d="M 4.00 13.60 L 4.20 11.82 L 4.79 10.13 L 5.75 8.61 L 7.01 7.34 L 8.53 6.39 L 10.22 5.80 L 12.00 5.60 L 13.78 5.80 L 15.47 6.39 L 16.99 7.34 L 18.25 8.61 L 19.21 10.13 L 19.80 11.82 L 20.00 13.60" fill="none" stroke="#4C8DFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 4.00 13.60 L 4.00 15.60" fill="none" stroke="#4C8DFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 20.00 13.60 L 20.00 15.60" fill="none" stroke="#4C8DFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 12.00 13.60 L 16.60 8.40" fill="none" stroke="#4C8DFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 13.60 13.60 L 13.54 14.01 L 13.39 14.40 L 13.13 14.73 L 12.80 14.99 L 12.41 15.14 L 12.00 15.20 L 11.59 15.14 L 11.20 14.99 L 10.87 14.73 L 10.61 14.40 L 10.46 14.01 L 10.40 13.60 L 10.46 13.19 L 10.61 12.80 L 10.87 12.47 L 11.20 12.21 L 11.59 12.05 L 12.00 12.00 L 12.41 12.05 L 12.80 12.21 L 13.13 12.47 L 13.39 12.80 L 13.54 13.19 Z" fill="#4C8DFF" stroke="none"/>
+  <path d="M 14.10 18.40 L 14.32 18.43 L 14.51 18.53 L 14.67 18.69 L 14.77 18.88 L 14.80 19.10 L 14.80 19.10 L 14.77 19.32 L 14.67 19.51 L 14.51 19.67 L 14.32 19.77 L 14.10 19.80 L 9.90 19.80 L 9.68 19.77 L 9.49 19.67 L 9.33 19.51 L 9.23 19.32 L 9.20 19.10 L 9.20 19.10 L 9.23 18.88 L 9.33 18.69 L 9.49 18.53 L 9.68 18.43 L 9.90 18.40 Z" fill="#4C8DFF" stroke="none"/>
+</svg>
