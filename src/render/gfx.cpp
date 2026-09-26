@@ -2,6 +2,8 @@
 //  MOBILADOR - src/render/gfx.cpp
 // ============================================================================
 #include "gfx.h"
+#include <stdio.h>      // screenshot file output
+#include <stdlib.h>     // row buffer
 #include "../core/log.h"
 #include <d3dcompiler.h>
 
@@ -483,6 +485,92 @@ bool Gfx::init(HWND hwnd, u32 w, u32 h, bool allow_tearing, i32 adapter_index) {
     MOB_INFO("Renderer ready: %ux%u, flip model, tearing=%s, waitable=%s",
              width, height, tearing_supported ? "yes" : "no", waitable_supported ? "yes" : "no");
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Screenshot: back buffer -> staging -> BMP file.
+//
+// The image is written as 32-bit BGRA because that is exactly what the flip
+// model swap chain already holds, so the only transformation is the R/B swap
+// the BMP format requires. No encoder, no GDI, no dependency.
+// ---------------------------------------------------------------------------
+bool Gfx::screenshot_bmp(const char* path) {
+    if (!dev || !ctx || !swap || width == 0 || height == 0) return false;
+
+    ID3D11Texture2D* back = nullptr;
+    if (FAILED(swap->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&back)) || !back) return false;
+
+    D3D11_TEXTURE2D_DESC bd{};
+    back->GetDesc(&bd);
+
+    D3D11_TEXTURE2D_DESC sd = bd;
+    sd.Usage          = D3D11_USAGE_STAGING;
+    sd.BindFlags      = 0;
+    sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    sd.MiscFlags      = 0;
+    sd.MipLevels      = 1;
+    sd.ArraySize      = 1;
+
+    ID3D11Texture2D* staging = nullptr;
+    if (FAILED(dev->CreateTexture2D(&sd, nullptr, &staging)) || !staging) { back->Release(); return false; }
+
+    // Flush the GPU before the copy: Measure/End must see every draw call.
+    ctx->CopyResource(staging, back);
+
+    D3D11_MAPPED_SUBRESOURCE m{};
+    bool written = false;
+    if (SUCCEEDED(ctx->Map(staging, 0, D3D11_MAP_READ, 0, &m))) {
+        const u32 w = bd.Width, h = bd.Height;
+        const u32 row_bytes = w * 4;
+        const u32 pixel_bytes = row_bytes * h;
+        const u32 file_bytes = 54 + pixel_bytes;
+
+        FILE* f = fopen(path, "wb");
+        if (f) {
+            u8 header[54] = { 0 };
+            header[0] = 'B'; header[1] = 'M';
+            header[2] = (u8)(file_bytes); header[3] = (u8)(file_bytes >> 8);
+            header[4] = (u8)(file_bytes >> 16); header[5] = (u8)(file_bytes >> 24);
+            header[10] = 54;                              // pixel data offset
+            header[14] = 40;                              // BITMAPINFOHEADER
+            header[18] = (u8)(w); header[19] = (u8)(w >> 8); header[20] = (u8)(w >> 16); header[21] = (u8)(w >> 24);
+            header[22] = (u8)(h); header[23] = (u8)(h >> 8); header[24] = (u8)(h >> 16); header[25] = (u8)(h >> 24);
+            header[26] = 1;                               // planes
+            header[28] = 32;                              // bits per pixel
+            fwrite(header, 1, sizeof(header), f);
+
+            // A static row buffer (no allocation, no CRT lifetime to reason
+            // about). Rows wider than the buffer are written in segments, which
+            // only happens on displays wider than 1024 logical pixels per row
+            // segment - and never more than a few segments.
+            static u8 row[16 * 1024];
+            const u32 seg_pixels = (u32)(sizeof(row) / 4);
+            bool all_rows = true;
+            // BMP rows run bottom-up, and the swap chain stores RGBA, so rows are
+            // copied from the end and R/B are exchanged on the way.
+            for (u32 y = 0; y < h && all_rows; ++y) {
+                const u8* src_row = (const u8*)m.pData + (usize)(h - 1 - y) * m.RowPitch;
+                for (u32 x0 = 0; x0 < w; x0 += seg_pixels) {
+                    u32 n = (w - x0 < seg_pixels) ? (w - x0) : seg_pixels;
+                    for (u32 x = 0; x < n; ++x) {
+                        const u8* src = src_row + (usize)(x0 + x) * 4;
+                        row[x * 4 + 0] = src[2];              // B
+                        row[x * 4 + 1] = src[1];              // G
+                        row[x * 4 + 2] = src[0];              // R
+                        row[x * 4 + 3] = 255;                 // BMP alpha is unused
+                    }
+                    if (fwrite(row, 1, n * 4, f) != n * 4) { all_rows = false; break; }
+                }
+            }
+            written = all_rows;
+            fclose(f);
+        }
+        ctx->Unmap(staging, 0);
+    }
+
+    staging->Release();
+    back->Release();
+    return written;
 }
 
 void Gfx::shutdown() {

@@ -155,7 +155,11 @@ struct App {
     u32   hotkey_index_waiting = 0xFFFFFFFFu;
     bool  hotkeys[8] = { false };
     f32   photo_flash = 0;
-    char  screenshot_msg[128] = "";
+    bool  screenshot_pending = false;
+    char  screenshot_msg[256] = "";
+    // Captures the frame that is about to be presented and writes it next to the
+    // other artefacts (Documentos\Mobilador).
+    void take_screenshot();
 
     // ---- lifecycle ---------------------------------------------------------
     bool pre_init(AppPaths* paths_);

@@ -106,6 +106,13 @@ struct Gfx {
     u64  last_present_us = 0;
     GfxStats stats{};
 
+    // Writes the current back buffer to a 32-bit BMP. Called between the last
+    // draw call and Present (after Present the back buffer contents of a
+    // FLIP_DISCARD swap chain are undefined). This is deliberately outside the
+    // frame path: it allocates a staging texture on demand, which is fine for a
+    // hotkey and would be wrong per frame.
+    bool screenshot_bmp(const char* path);
+
     bool init(HWND hwnd, u32 width, u32 height, bool allow_tearing, i32 adapter_index);
     void shutdown();
     bool resize(u32 width, u32 height);

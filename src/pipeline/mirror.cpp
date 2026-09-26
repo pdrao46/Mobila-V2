@@ -133,7 +133,16 @@ void Mirror::set_state(SessionState s, const char* text) {
 }
 
 void Mirror::notify_frame() {
-    if (notify_window) PostMessageA((HWND)notify_window, WM_APP + 1, 0, 0);
+    // WM_APP_FRAME is a *hint*, not a delivery mechanism: the renderer takes the
+    // frame from the mailbox on its own schedule. It exists so the message pump
+    // wakes up immediately instead of waiting for the next input message, which
+    // is what keeps the perceived latency of a fresh frame at one frame time.
+    if (!notify_window) return;
+    if (!PostMessageA((HWND)notify_window, WM_APP_FRAME, 0, 0)) {
+        // The queue is full (or the window is gone). Dropping the hint is
+        // harmless: the frame is already in the mailbox.
+        MOB_TRACE("frame notify dropped");
+    }
 }
 
 // ------------------------------------------------------------------- sockets

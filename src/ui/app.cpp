@@ -437,14 +437,11 @@ void App::handle_hotkey(u32 index) {
         case 3: capture_mouse(true); break;
         case 4: set_game_mode(!game_mode); break;
         case 5: toggle_session(); break;
-        case 6: {
-            // PNG screenshot of the current frame is written through GDI from the
-            // swapchain back buffer; kept out of the hot path on purpose.
-            photo_flash = 1.0f;
-            snprintf(screenshot_msg, sizeof(screenshot_msg), "Screenshot: F6 (salvo em Documentos\\Mobilador)");
-            w.toast("Screenshot solicitado", theme.info, ICON_SCREEN, 2.5f);
+        case 6:
+            // The capture itself happens at the end of the frame, right before
+            // Present, where the back buffer still holds the finished image.
+            screenshot_pending = true;
             break;
-        }
         case 7:
             show_log = !show_log;
             break;
@@ -665,6 +662,12 @@ void App::draw(float dt) {
     w.draw_toasts();
     ui.end();
 
+    // ---- screenshot: the back buffer is only valid before Present
+    if (screenshot_pending) {
+        screenshot_pending = false;
+        take_screenshot();
+    }
+
     gfx.set_present_mode(settings.vsync ? PRESENT_VSYNC
                          : (settings.frame_pacing ? PRESENT_FRAME_PACED : PRESENT_ULTRA_LOW_LATENCY));
 
@@ -760,6 +763,32 @@ void App::draw_video_surface(Rect area) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Screenshot: writes what the user is looking at (game frame + overlay, or the
+// full screen), into Documentos\Mobilador. The on-screen flash is the only
+// confirmation that is not a file system message.
+// ---------------------------------------------------------------------------
+void App::take_screenshot() {
+    Arena a; a.init(1 << 16);
+    Str dir = documents_dir(&a);
+    char dir_z[512];
+    snprintf(dir_z, sizeof(dir_z), "%.*s", (int)dir.n, dir.p);
+    dir_create(dir_z);
+    char path[512];
+    SYSTEMTIME st{};
+    GetLocalTime(&st);
+    snprintf(path, sizeof(path), "%.*s\\captura-%04d%02d%02d-%02d%02d%02d.bmp",
+             (int)dir.n, dir.p, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+    a.shutdown();
+
+    bool ok = gfx.screenshot_bmp(path);
+    photo_flash = 1.0f;
+    const char* name = strrchr(path, '\\');
+    snprintf(screenshot_msg, sizeof(screenshot_msg), "%s", ok ? (name ? name + 1 : path) : "falhou");
+    w.toast(ok ? "Captura salva em Documentos\\Mobilador" : "Nao foi possivel salvar a captura",
+            ok ? theme.ok : theme.err, ok ? ICON_CHECK : ICON_ERROR, ok ? 3.0f : 5.0f);
+}
+
 void App::on_settings_changed(const char* reason) {
     settings_dirty = true;
     settings_saved_at_us = now_us();
