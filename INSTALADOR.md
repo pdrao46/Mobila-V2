@@ -3,16 +3,16 @@
 O instalador **não** fica no código-fonte — ele é um artefacto binário construído pelo
 pipeline deste repositório. Está publicado aqui mesmo, nesta pasta:
 
-## ➡️ [`release/Mobilador-Setup-1.0.3.exe`](release/Mobilador-Setup-1.0.3.exe) — 41,9 MB
+## ➡️ [`release/Mobilador-Setup-1.0.4.exe`](release/Mobilador-Setup-1.0.4.exe) — 41,9 MB
 
 Clique no link acima **e depois no botão de download** que aparece no canto direito da
 página (ícone ⬇ *Download* / *Download raw file*).
 
 | | |
 |---|---|
-| **Ficheiro** | `Mobilador-Setup-1.0.3.exe` |
+| **Ficheiro** | `Mobilador-Setup-1.0.4.exe` |
 | **Tamanho** | 43 905 841 bytes (41,9 MB) |
-| **SHA-256** | `e5268e6b51403a4773a3f28b5cab06a382bd1bfebd5a30bd1b51cc64ce7fd004` |
+| **SHA-256** | `27d3e970180e2060f6e9f6d6aa2b7b42abb72626b01f1be4022d8a5a4f67d5e2` |
 | **Sistema** | Windows 10/11, 64 bits |
 | **Requisitos** | nenhum — sem Java, sem Visual C++, sem Android SDK, sem administrador |
 
@@ -23,26 +23,20 @@ página (ícone ⬇ *Download* / *Download raw file*).
 > automático (`tools/installer/test_payload.cpp`, roda em Linux) e o
 > instalador ainda tenta pastas alternativas se a padrão falhar.
 
-> **Versão 1.0.3** — corrige a renderização do texto, que aparecia como blocos
-> pretos sólidos. Eram **duas** causas no caminho dos glifos:
+> **Versão 1.0.4** — corrige a geometria do quadro. O gerador de índices
+> avançava o cursor **três** posições por vértice e escrevia `first+i*3+k`:
+> cada quadrado (6 vértices) recebia 18 índices, ou seja desenhava **seis**
+> triângulos em vez de dois, e quatro deles referenciavam vértices de *outros*
+> elementos. Dentro do mesmo lote isso duplicava os glifos seguintes (texto mais
+> escuro/grosso); na fronteira entre lotes, o lote anterior desenhava triângulos
+> com a geometria do lote seguinte e com o *seu* shader — retângulos sólidos
+> escuros por cima das primeiras letras e riscos pela tela. Um quadrado é
+> `0,1,2 + 3,4,5`; agora é exatamente isso: um índice por vértice.
 >
-> 1. o atlas de glifos é uma textura `R8_UNORM` (só cobertura em `.r`), mas o
->    pixel shader da UI lia `.rgb` e `.a` como se fosse ARGB — numa textura R8 o
->    `Sample` devolve `(cobertura, 0, 0, 1)`, ou seja blocos opacos sem os canais
->    verde e azul;
-> 2. o atlas era criado como `D3D11_USAGE_DYNAMIC` e escrito com
->    `UpdateSubresource` — combinação que o Direct3D **não executa** (recurso
->    DYNAMIC exige `Map`/`Unmap`). O upload não acontecia, a cobertura ficava
->    zero e todo o texto saía preto opaco.
->
-> Agora existe um shader `ps_text` dedicado a texturas de cobertura, o atlas usa
-> `D3D11_USAGE_DEFAULT` (par correto do `UpdateSubresource`) e uma verificação no
-> arranque lê o atlas de volta e escreve no log se ele vier vazio.
->
-> Também nesta versão: `build.py` e `build_installer.py` deixaram de reutilizar
-> artefatos antigos (o build ignorava alterações em headers e o empacotador
-> reutilizava o `dist/Mobilador.exe` existente — foi assim que uma versão saiu
-> com o executável anterior dentro).
+> O aplicativo também passou a **verificar-se**: no primeiro quadro confere que
+> `icount == verts_used` e que os índices são `0,1,2,3,...`, e escreve no log
+> `ui: geometry ok (N quads, M verts, pattern 0..n-1)` — ou um erro explícito se
+> o padrão voltar a quebrar.
 
 ## Como instalar
 
@@ -52,7 +46,7 @@ página (ícone ⬇ *Download* / *Download raw file*).
 3. Clique em **INSTALAR**.
 4. Abra o **Mobilador** e ligue a **Depuração USB** no telemóvel.
 
-> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.3.exe --portable [pasta]`
+> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.4.exe --portable [pasta]`
 
 ## Guias
 

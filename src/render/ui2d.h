@@ -126,6 +126,16 @@ struct Ui2D {
                     f32 x, f32 y, f32 w, f32 h,
                     f32 u0, f32 v0, f32 u1, f32 v1, f32 sharpness = 0.0f);
 
+    // True when the vertex/index invariant holds. Every quad is 6 vertices
+    // indexed 0..5, and the index cursor advances one slot per vertex, so the
+    // two counters must match and the index buffer must read 0,1,2,3,...
+    // The 1.0.3 code advanced it by n*3 and emitted first+i*3+k, which drew
+    // six triangles per element and pulled in geometry from the next elements.
+    // Checked by the app on the first frame and reported in the log.
+    u32  verts_quads = 0;        // quads emitted through verts()
+    u32  verts_used  = 0;        // vertex slots they reserved
+    bool verts_consistent() const;
+
 private:
     void flush_cmd();
     void set_texture(ID3D11ShaderResourceView* srv, bool shape, bool linear, bool coverage = false);

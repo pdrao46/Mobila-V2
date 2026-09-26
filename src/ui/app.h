@@ -156,6 +156,7 @@ struct App {
     bool  hotkeys[8] = { false };
     f32   photo_flash = 0;
     bool  screenshot_pending = false;
+    bool  ui_invariant_reported = false;   // the vertex/index check logs once
     char  screenshot_msg[256] = "";
     // Captures the frame that is about to be presented and writes it next to the
     // other artefacts (Documentos\Mobilador).

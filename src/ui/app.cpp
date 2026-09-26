@@ -683,6 +683,19 @@ void App::draw(float dt) {
         take_screenshot();
     }
 
+    // Geometry self-check: a wrong index pattern draws extra triangles that
+    // reach into neighbouring elements and is invisible to D3D. Report it once,
+    // with the counters, instead of leaving the user with a garbled screen.
+    if (!ui_invariant_reported) {
+        ui_invariant_reported = true;
+        if (!ui.verts_consistent())
+            MOB_ERROR("ui: vertex/index invariant broken (quads=%u verts=%u) - "
+                      "geometry will be garbled", ui.verts_quads, ui.verts_used);
+        else
+            MOB_DEBUG("ui: geometry ok (%u quads, %u verts, pattern 0..n-1)",
+                      ui.verts_quads, ui.verts_used);
+    }
+
     gfx.set_present_mode(settings.vsync ? PRESENT_VSYNC
                          : (settings.frame_pacing ? PRESENT_FRAME_PACED : PRESENT_ULTRA_LOW_LATENCY));
 

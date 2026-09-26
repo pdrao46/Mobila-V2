@@ -45,7 +45,7 @@ using namespace mobinst;
 
 // ------------------------------------------------------------------ constants
 static const wchar_t* kAppName      = L"Mobilador";
-static const wchar_t* kAppVersion   = L"1.0.3";
+static const wchar_t* kAppVersion   = L"1.0.4";
 static const wchar_t* kPublisher    = L"Mobilador";
 static const wchar_t* kUninstallKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Mobilador";
 

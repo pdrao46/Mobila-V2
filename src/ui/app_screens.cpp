@@ -433,7 +433,7 @@ void App::draw_performance(Rect r) {
             Rect rr = row_rect();
             static const char* res_items[6] = { "1280x720", "1600x900", "1920x1080", "2560x1440", "Auto (tela do celular)", "Original" };
             u32 idx = 2;
-            u32 w_ = settings.resolution_w, h_ = settings.resolution_h;
+            u32 w_ = settings.resolution_w;
             if (w_ == 1280) idx = 0; else if (w_ == 1600) idx = 1; else if (w_ == 1920) idx = 2;
             else if (w_ == 2560) idx = 3;
             ui.text("Resolucao", rr.x, rr.cy() - ui.line_h(FONT_LABEL) * 0.5f, FONT_LABEL, theme.text);

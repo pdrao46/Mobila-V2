@@ -43,6 +43,7 @@ void Ui2D::begin(u32 w, u32 h) {
     vcount = icount = 0;
     cmds.reset();
     triangles = 0; draw_calls = 0;
+    verts_quads = verts_used = 0;
     clip_depth = 0;
     clip_rect = Rect{ 0, 0, (f32)w, (f32)h };
     cmd_tex = nullptr;
@@ -105,7 +106,7 @@ void Ui2D::reset_clip() {
 }
 
 UiVert* Ui2D::verts(u32 n, u16** idx, u32* first_index) {
-    if (!vbase || vcount + n > vcap || icount + n * 3 > icap) {
+    if (!vbase || vcount + n > vcap || icount + n > icap) {
         // Extremely dense frames (a long graph plus a full screen of text) can
         // overflow; flush and continue rather than dropping the frame.
         flush_cmd();
@@ -116,13 +117,21 @@ UiVert* Ui2D::verts(u32 n, u16** idx, u32* first_index) {
     *first_index = vcount;
     UiVert* base = vbase + vcount;
     vcount += n;
-    icount += n * 3;
-    triangles += n;
-    for (u32 i = 0; i < n; ++i) {
-        (*idx)[i * 3 + 0] = (u16)(*first_index + i * 3 + 0);
-        (*idx)[i * 3 + 1] = (u16)(*first_index + i * 3 + 1);
-        (*idx)[i * 3 + 2] = (u16)(*first_index + i * 3 + 2);
-    }
+    icount += n;
+    triangles += n / 3;
+    verts_quads += n / 6;
+    verts_used += n;
+    // One index per vertex, in order. A quad is 6 vertices drawn as
+    // triangle list 0,1,2 + 3,4,5, so the indices must be exactly 0..n-1.
+    //
+    // This used to advance icount by n*3 and write first+i*3+{0,1,2}, i.e. 18
+    // indices per quad reaching up to first+17. Only the first six belong to
+    // the quad: the rest drew six triangles per element, pulled the next
+    // element's vertices (so glyphs came out doubled, dark and bold) and,
+    // when the next element sat in another vertex range, fetched whatever
+    // geometry was there - solid dark blocks over parts of the screen, with
+    // no D3D error because every index stayed inside the buffer.
+    for (u32 i = 0; i < n; ++i) (*idx)[i] = (u16)(*first_index + i);
     return base;
 }
 
@@ -449,6 +458,19 @@ void Ui2D::image(ID3D11ShaderResourceView* srv, f32 x, f32 y, f32 w, f32 h, Col 
     if (!v) return;
     quad(v, x, y, x + w, y + h, 0, 0, 1, 1, tint, tint);
     set_geo(v, w * 0.5f, h * 0.5f, 0, 0);
+}
+
+bool Ui2D::verts_consistent() const {
+    // Every call site asks for exactly one index per vertex, so the index
+    // count and the vertex count must be equal. The 1.0.3 code advanced the
+    // index cursor by n*3 (three indices per vertex) and emitted them in that
+    // pattern; this single comparison catches that class of mistake, and the
+    // value check below catches any other layout drift.
+    if (verts_used != verts_quads * 6) return false;
+    if (icount != verts_used) return false;
+    if (!ibase) return true;
+    for (u32 i = 0; i < icount; ++i) if (ibase[i] != (u16)i) return false;
+    return true;
 }
 
 // -------------------------------------------------------------------- flush
