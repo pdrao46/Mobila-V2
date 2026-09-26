@@ -527,6 +527,21 @@ void App::start_session() {
         }
     }
     run_diagnostics(true);
+
+    // The phone side must be there before anything else can happen. If it is
+    // missing, install it now instead of failing with a cryptic error: this is
+    // the difference between "it works on the first click" and "read the docs".
+    if (!server_module_present && !adb.module_present_on_device()) {
+        MOB_INFO("phone server module missing on the device - installing");
+        w.toast("Enviando o modulo do servidor para o celular...", theme.info, ICON_UPLOAD, 4.0f);
+        install_server_module();
+        if (!server_module_present) {
+            w.toast("Sem o modulo do servidor no celular - veja DIAGNOSTICO", theme.err, ICON_WARNING, 8.0f);
+            screen = SCREEN_DIAGNOSTICS;
+            return;
+        }
+    }
+
     if (!mirror.start()) {
         w.toast(mirror.session_state_text(), theme.err, ICON_WARNING, 6.0f);
         return;
