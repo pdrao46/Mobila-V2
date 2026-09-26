@@ -296,6 +296,31 @@ def build_stub(toolchain):
     return stub
 
 
+def path_selftest():
+    """Compila e roda o self-test de caminhos antes de construir nada.
+
+    A 1.0.0 criava as pastas intermedias mas nunca o destino final, e como isso
+    e' logica pura de Windows nenhum teste antigo pegava. Aqui ele roda no
+    inicio: se falhar, o build para antes de produzir (ou sobrescrever) algum
+    artefato.
+    """
+    if not shutil.which("g++"):
+        print("aviso: sem g++, o self-test de caminhos nao pode rodar")
+        return True
+    exe = os.path.join(BUILD, "test_payload")
+    r = run(["g++", "-std=c++17", "-O2", "-o", exe,
+             os.path.join(TOOLS, "installer", "test_payload.cpp")])
+    if r.returncode != 0:
+        print("erro: o self-test nao compilou:\n" + (r.stderr or "")[:800])
+        return False
+    r = run([exe, "--paths"])
+    sys.stdout.write(r.stdout or "")
+    if r.returncode != 0:
+        print("erro: self-test de caminhos FALHOU - build abortado sem gravar nada")
+        return False
+    return True
+
+
 def verify(stub, stage, out, use_cpp):
     ok = True
     step("verificando o payload (python)")
@@ -366,17 +391,29 @@ def main():
     if not stub:
         return 1
 
-    os.makedirs(RELEASE, exist_ok=True)
-    out = os.path.join(RELEASE, "Mobilador-Setup-%s.exe" % VERSION)
-    print("  empacotando...")
-    r = run([sys.executable, os.path.join(TOOLS, "installer", "pack_payload.py"),
-             "--stub", stub, "--payload", STAGE, "--out", out])
-    print((r.stdout or "") + (r.stderr or ""))
-    if r.returncode != 0:
+    if not path_selftest():
         return 1
 
-    if not args.no_verify and not verify(stub, STAGE, out, True):
+    os.makedirs(RELEASE, exist_ok=True)
+    out = os.path.join(RELEASE, "Mobilador-Setup-%s.exe" % VERSION)
+    tmp = out + ".parcial"
+    print("  empacotando...")
+    r = run([sys.executable, os.path.join(TOOLS, "installer", "pack_payload.py"),
+             "--stub", stub, "--payload", STAGE, "--out", tmp])
+    print((r.stdout or "") + (r.stderr or ""))
+    if r.returncode != 0:
+        if os.path.exists(tmp):
+            os.remove(tmp)
         return 1
+
+    # Verifica o ficheiro temporario e so o promove a release/ se estiver bom:
+    # uma verificacao que falha nunca deixa um .exe quebrado no lugar do bom.
+    if not args.no_verify and not verify(stub, STAGE, tmp, True):
+        os.remove(tmp)
+        print("  o arquivo NAO foi publicado (verificacao falhou); "
+              "versao anterior em release/ segue intacta")
+        return 1
+    os.replace(tmp, out)
 
     print("  pronto em %.1f s: %s (%.1f MB)" %
           (time.time() - t0, os.path.relpath(out, ROOT), os.path.getsize(out) / 1048576.0))
