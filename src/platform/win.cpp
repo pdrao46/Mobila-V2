@@ -2,6 +2,7 @@
 //  MOBILADOR - src/platform/win.cpp
 // ============================================================================
 #include "win.h"
+#include <timeapi.h>    // timeBeginPeriod / timeEndPeriod (winmm)
 #include <shellscalingapi.h>
 #include <dwmapi.h>
 #include <shlobj.h>

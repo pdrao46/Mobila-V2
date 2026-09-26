@@ -1,0 +1,90 @@
+# ============================================================================
+#  MOBILADOR - tools/ci-build.yml
+#
+#  This is the CI workflow *ready to install*. It is kept here, outside
+#  .github/workflows/, because pushing a workflow file requires a token with the
+#  "workflows" permission. To enable CI on the repository, copy this file to
+#  .github/workflows/build.yml (or paste it in the GitHub web editor) and commit.
+#
+#  What it produces
+#    mobilador-windows : dist/Mobilador.exe, built with zig (no MSVC needed),
+#                        plus the Windows resources (icon + version info).
+#    mobilador-dex     : mobilador.dex, the on-device server module built from
+#                        the Java sources with javac + the bundled d8.jar, and
+#                        pushed as a release artifact so end users never need a
+#                        JDK at all.
+# ============================================================================
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows application
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          python3 -m pip install --upgrade pip ziglang
+          python3 -c "import ziglang, os; print(os.path.join(os.path.dirname(ziglang.__file__), 'zig'))" >> $GITHUB_PATH
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil
+
+      - name: Generate assets (icons, logo, splash)
+        run: python3 tools/gen_assets.py
+
+      - name: Build Mobilador.exe
+        run: python3 tools/build.py
+
+      - name: Core unit tests
+        run: bash tools/run_tests.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobilador-windows
+          path: |
+            dist/Mobilador.exe
+            assets/icon/mobilador.ico
+            assets/logo/*
+
+  dex:
+    name: Android server module (mobilador.dex)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Compile and dex the phone-side module
+        run: |
+          chmod +x android-server/build.sh
+          ./build.sh
+        working-directory: android-server
+
+      - name: Verify the DEX is a single, loadable file
+        run: |
+          python3 - <<'PY'
+          import glob, os, struct
+          p = 'dist/mobilador.dex'
+          assert os.path.exists(p), 'mobilador.dex was not produced'
+          data = open(p, 'rb').read()
+          # DEX magic: "dex\n0xx\0"
+          magic = data[:8]
+          assert magic.startswith(b'dex\n'), magic
+          header_size, = struct.unpack_from('<I', data, 36)
+          assert header_size == 0x70, header_size
+          print('DEX ok: %s (%d KB, version %s)' % (p, len(data) // 1024, magic[4:7].decode()))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobilador-dex
+          path: dist/mobilador.dex

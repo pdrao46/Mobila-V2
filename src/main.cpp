@@ -79,7 +79,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     AppPaths* paths = app_paths();
     g_log.init(paths->log_dir);
     g_log.set_level(LOG_INFO);
-    MOB_INFO("Mobilador %s starting (%s)", MOB_VERSION_STR, MOB_BUILD);
+    MOB_INFO("Mobilador %s starting (%s)", MOB_VERSION_STR, MOB_BUILD_STR);
 
     static App app;
     g_app = &app;
@@ -117,9 +117,21 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         MSG msg;
         while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) { running = false; break; }
+            // Input state is fed before dispatch so widgets see the message in
+            // the same frame, and hotkeys are consumed in the window procedure.
+            switch (msg.message) {
+                case WM_MOUSEMOVE: case WM_LBUTTONDOWN: case WM_LBUTTONUP:
+                case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_MBUTTONDOWN:
+                case WM_MBUTTONUP: case WM_MOUSEWHEEL: case WM_LBUTTONDBLCLK:
+                    app.on_mouse_message(msg);
+                    break;
+                case WM_KEYDOWN: case WM_SYSKEYDOWN: case WM_CHAR: case WM_SYSCHAR:
+                    app.on_key_message(msg);
+                    break;
+                default: break;
+            }
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
-            if (msg.message == WM_LBUTTONDOWN || msg.message == WM_MOUSEMOVE) app.on_mouse_message(msg);
         }
         if (!running) break;
 

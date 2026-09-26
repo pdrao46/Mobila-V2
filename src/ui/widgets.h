@@ -15,9 +15,14 @@
 namespace mob {
 
 // Ring size used by every telemetry graph (samples are read modulo this).
+// It lives in telemetry.h because the sampler owns the buffers; the guard keeps
+// the value single-sourced when both headers are included.
+#ifndef MOB_GRAPH_RING
 #define MOB_GRAPH_RING 1024
+#endif
 
-enum MouseButton : int { MB_LEFT = 0, MB_RIGHT = 1, MB_MIDDLE = 2 };
+// Names avoid the MB_LEFT/MB_RIGHT window styles defined in winuser.h.
+enum MouseButton : int { MOB_MB_LEFT = 0, MOB_MB_RIGHT = 1, MOB_MB_MIDDLE = 2 };
 
 struct UiInput {
     f32  mouse_x = 0, mouse_y = 0;

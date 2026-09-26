@@ -406,7 +406,9 @@ final class ScreenServer {
         CodecMath.putU16(packet, 20, mHeight);
         packet[22] = (byte) ("video/hevc".equals(mMime) ? 1 : 0);
         packet[23] = (byte) mFps;
-        CodecMath.putU32(packet, 24, 0);
+        // 8-byte prefix: w(2) h(2) hevc(1) fps(1) reserved(2).  It stops at
+        // payload offset 8, exactly where the CSD blob starts.
+        CodecMath.putU16(packet, 24, 0);
         System.arraycopy(mCsd, 0, packet, CodecMath.HEADER_SIZE + prefix, mCsd.length);
         try {
             OutputStream out = mSocket.stream();

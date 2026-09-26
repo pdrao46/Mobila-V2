@@ -160,8 +160,8 @@ void Settings::auto_optimize(const Caps& caps, Str* reasons, u32 reason_cap) {
 }
 
 // --------------------------------------------------------------------- INI
-static void write_line(FILE* f, const char* key, const char* value) {
-    fprintf(f, "%s = %s\n", key, value);
+static void write_line(FILE* f, const char* key, Str value) {
+    fprintf(f, "%s = %.*s\n", key, (int)value.n, value.p ? value.p : "");
 }
 
 bool Settings::save(const char* path) {

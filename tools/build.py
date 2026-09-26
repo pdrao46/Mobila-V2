@@ -43,21 +43,36 @@ def find_zig():
             return cand
     return None
 
+# Import libraries. Two notes that cost an afternoon if forgotten:
+#   * the compiler DLL is d3dcompiler_47 (the file name is what the import
+#     library is named after, and mingw ships no bare "d3dcompiler"),
+#   * mfuuid / dxguid are deliberately absent: this project declares the few
+#     Media Foundation and DXGI GUIDs it needs locally (see src/video/decoder.cpp),
+#     so a toolchain without those import libraries still links cleanly.
 WINDOWS_LIBS = [
-    "d3d11", "dxgi", "d3dcompiler", "mfplat", "mfreadwrite", "mfuuid", "mfsensorgroup",
+    "d3d11", "dxgi", "d3dcompiler_47", "mfplat", "mfreadwrite",
     "ole32", "oleaut32", "user32", "gdi32", "shell32", "shlwapi", "advapi32",
-    "setupapi", "cfgmgr32", "hid", "avrt", "winmm", "dwmapi", "shcore", "version",
-    "ws2_32", "iphlpapi", "userenv", "bcrypt", "crypt32", "propsys", "d3d10", "dxguid",
+    "setupapi", "cfgmgr32", "avrt", "winmm", "dwmapi", "shcore", "version",
+    "ws2_32", "iphlpapi", "userenv", "bcrypt", "crypt32", "propsys", "psapi",
 ]
 
+# Windows target level comes from the toolchain (zig already defines
+# _WIN32_WINNT=0x0a00); redefining it only produces a warning per translation
+# unit. The build stamp (MOB_BUILD) lives in src/core/base.h.
 COMMON_DEFS = [
     "-DUNICODE", "-D_UNICODE", "-DWIN32_LEAN_AND_MEAN", "-DNOMINMAX",
-    "-DWINVER=0x0A00", "-D_WIN32_WINNT=0x0A00", "-D_CRT_SECURE_NO_WARNINGS",
-    "-DMOB_BUILD",
+    "-D_CRT_SECURE_NO_WARNINGS",
+    # Exact build stamp, injected here instead of using __DATE__/__TIME__
+    # (that would make the build irreproducible and is a hard error in some
+    # toolchains).
+    '-DMOB_BUILD_STR=\"%s\"' % time.strftime("%Y-%m-%d %H:%M"),
 ]
 
 WARN = ["-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-unused-function",
-        "-Wno-missing-field-initializers", "-Wno-cast-function-type", "-Wno-sign-compare"]
+        "-Wno-missing-field-initializers", "-Wno-cast-function-type", "-Wno-sign-compare",
+        # libc++ headers trip this on the bundled clang; it says nothing about
+        # this code base and would bury the useful warnings.
+        "-Wno-nullability-completeness", "-Wno-unknown-pragmas"]
 
 def sources():
     out = []
@@ -141,17 +156,22 @@ def main():
         ico = os.path.join(ROOT, "assets", "icon", "mobilador.ico")
         if os.path.exists(rc):
             rc_obj = os.path.join(objdir, "mobilador_res.o")
-            if not os.path.exists(rc_obj) or os.path.getmtime(rc_obj) < os.path.getmtime(rc):
+            needs_rc = (not os.path.exists(rc_obj) or os.path.getmtime(rc_obj) < os.path.getmtime(rc)
+                        or (os.path.exists(ico) and os.path.getmtime(rc_obj) < os.path.getmtime(ico)))
+            if needs_rc:
                 zigbin = find_zig() if tc == "zig" else None
                 ok = False
                 if zigbin:
-                    r = run([zigbin, "rc", rc, "-o", rc_obj, "-O", "coff"],
+                    # zig rc takes the Microsoft switches: /fo <path> <input>.
+                    # (Its -o form parses but writes nothing.)
+                    r = run([zigbin, "rc", "/fo", rc_obj, os.path.basename(rc)],
                             cwd=os.path.join(ROOT, "assets"), capture_output=True, text=True)
                     ok = (r.returncode == 0)
                     if not ok and not args.quiet:
                         print("  rc:", (r.stderr or r.stdout or "").strip()[:400])
                 if not ok and shutil.which("x86_64-w64-mingw32-windres"):
-                    r = run(["x86_64-w64-mingw32-windres", "-i", rc, "-o", rc_obj, "-O", "coff"],
+                    r = run(["x86_64-w64-mingw32-windres", "-i", os.path.basename(rc), "-o", rc_obj,
+                             "-O", "coff", "--include-dir", "."],
                             cwd=os.path.join(ROOT, "assets"), capture_output=True, text=True)
                     ok = (r.returncode == 0)
                 if not ok:
@@ -188,7 +208,9 @@ def main():
         return 1
 
     exe = os.path.join(DIST, "Mobilador.exe")
-    link = base + (["-mwindows"] if not args.debug else []) + [
+    # -municode selects the wWinMain entry point (the application is built as a
+    # Unicode GUI binary, so the ANSI WinMain stub would not be found).
+    link = base + (["-mwindows", "-municode"] if not args.debug else []) + [
         "-o", exe,
         "-static", "-static-libgcc", "-static-libstdc++",
         "-Wl,--gc-sections", "-Wl,--nxcompat", "-Wl,--dynamicbase", "-Wl,--high-entropy-va",

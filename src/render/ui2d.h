@@ -14,7 +14,7 @@
 #include "color.h"
 #include "gfx.h"
 #include "text.h"
-#include "icons.h"
+#include "../ui/Icons.generated.h"
 
 namespace mob {
 
@@ -34,6 +34,9 @@ struct DrawCmd {
     bool linear_filter;
 };
 
+// Current UI scale, published for the layout macro used by the screens.
+extern f32 g_ui_scale;
+
 struct Rect {
     f32 x = 0, y = 0, w = 0, h = 0;
     bool contains(f32 px, f32 py) const { return px >= x && py >= y && px < x + w && py < y + h; }
@@ -45,7 +48,7 @@ struct Rect {
 
 struct Ui2D {
     Gfx* gfx = nullptr;
-    TextRenderer* text = nullptr;
+    TextRenderer* txt = nullptr;      // glyph atlas renderer
     Arena arena;
 
     UiVert*  vbase = nullptr;
@@ -68,7 +71,7 @@ struct Ui2D {
 
     bool init(Gfx* gfx, TextRenderer* text);
     void shutdown();
-    void set_dpi(f32 dpi_scale) { dpi = dpi_scale; }
+    void set_dpi(f32 dpi_scale) { dpi = dpi_scale; g_ui_scale = dpi_scale; }
     f32  scale() const { return dpi; }
     i32  px(f32 logical) const { return (i32)(logical * dpi + 0.5f); }
     f32  sp(f32 logical) const { return logical * dpi; }
@@ -106,11 +109,20 @@ struct Ui2D {
     void text_bg(Str s, f32 x, f32 y, FontId font, Col fg, Col bg, f32 pad_x = 4, f32 pad_y = 2, f32 radius = 3);
     void text_ellipsis(Str s, f32 x, f32 y, f32 max_w, FontId font, Col c, TextAlign align = ALIGN_LEFT);
     void text_wrapped(Str s, f32 x, f32 y, f32 max_w, f32 line_h, FontId font, Col c, u32 max_lines = 8);
-    f32  measure(Str s, FontId font) { return text ? text->measure(font, s) : 0; }
-    f32  line_h(FontId font) { return text ? text->line_height(font) : 14; }
+    f32  measure(Str s, FontId font) { return txt ? txt->measure(font, s) : 0; }
+    f32  line_h(FontId font) { return txt ? txt->line_height(font) : 14; }
 
     // ---------------------------------------------------------------- images
     void image(ID3D11ShaderResourceView* srv, f32 x, f32 y, f32 w, f32 h, Col tint = Col(1, 1, 1, 1), bool linear = true);
+
+    // Draws one decoded video frame: two NV12 planes converted to RGB by the
+    // pixel shader. The quad is submitted immediately with its own state (its
+    // own constant buffer, both textures, video rasteriser), so the scene graph
+    // stays a single vertex buffer with zero extra passes and zero copies.
+    // Must be called before the UI of the same frame is drawn.
+    void draw_video(ID3D11ShaderResourceView* srv_y, ID3D11ShaderResourceView* srv_uv,
+                    f32 x, f32 y, f32 w, f32 h,
+                    f32 u0, f32 v0, f32 u1, f32 v1, f32 sharpness = 0.0f);
 
 private:
     void flush_cmd();

@@ -103,6 +103,23 @@ Str str_dup(Arena* a, Str s) {
     return Str(d, s.n);
 }
 
+Str str_fmt_temp(const char* fmt, ...) {
+    // Four rotating buffers of 512 bytes: a single statement can format several
+    // intermediates (fprintf-style) without the results aliasing each other.
+    static thread_local char bufs[4][512];
+    static thread_local u32  next = 0;
+    char* dst = bufs[next];
+    next = (next + 1) & 3u;
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(dst, sizeof(bufs[0]), fmt, ap);
+    va_end(ap);
+    if (n < 0) return Str("", 0);
+    u32 len = (u32)n;
+    if (len >= sizeof(bufs[0])) len = (u32)sizeof(bufs[0]) - 1;
+    return Str(dst, len);
+}
+
 Str str_fmt(Arena* a, const char* fmt, ...) {
     char tmp[1024];
     va_list ap; va_start(ap, fmt);

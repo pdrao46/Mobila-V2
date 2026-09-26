@@ -13,6 +13,12 @@
 #include <windows.h>
 #include <windowsx.h>
 
+// Application private window messages (never 0x8000-0xBFFF, which belongs to
+// other libraries; these start at WM_APP).
+#define WM_APP_LOG   (WM_APP + 1)   // a new log line is available
+#define WM_APP_STATE (WM_APP + 2)   // worker thread state change
+#define WM_APP_FRAME (WM_APP + 3)   // a new decoded frame is ready to present
+
 namespace mob {
 
 // ------------------------------------------------------------------ strings

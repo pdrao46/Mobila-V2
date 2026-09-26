@@ -65,8 +65,10 @@ struct Gfx {
     ID3D11Device*        dev  = nullptr;
     ID3D11DeviceContext* ctx  = nullptr;
     IDXGISwapChain1*     swap = nullptr;
+    IDXGISwapChain2*     swap2 = nullptr;      // frame-latency waitable object
     IDXGIAdapter1*       adapter = nullptr;
     IDXGIFactory2*       factory = nullptr;
+    IDXGIFactory5*       factory5 = nullptr;   // EnumWarpAdapter / CheckFeatureSupport
     GpuInfo              gpu{};
     u32                  feature_level = 0;
 
@@ -86,6 +88,7 @@ struct Gfx {
     ID3D11PixelShader*   ps_video = nullptr;
     ID3D11InputLayout*   layout_ui = nullptr;
     ID3D11Buffer*        cb_frame = nullptr;      // per-frame constants (screen size, time, gamma)
+    ID3D11Buffer*        cb_video = nullptr;      // video sampling/conversion params (b0 of ps_video)
     ID3D11SamplerState*  samp_linear = nullptr;
     ID3D11SamplerState*  samp_point = nullptr;
     ID3D11BlendState*    blend_alpha = nullptr;
@@ -123,6 +126,10 @@ struct Gfx {
     void set_viewport(f32 x, f32 y, f32 w, f32 h);
     void set_scissor(i32 x, i32 y, i32 w, i32 h);
     void begin_ui_pass(bool alpha_blend);
+    // Video parameters for the NV12 -> RGB pass. Kept in a dedicated constant
+    // buffer so the UI constant buffer is never rewritten mid-frame.
+    void set_video_params(f32 uv_scale_x, f32 uv_scale_y, f32 uv_off_x, f32 uv_off_y,
+                          f32 contrast, f32 saturation, f32 brightness, f32 sharpness);
     void draw_batch(const void* verts, u32 vcount, const u16* indices, u32 icount);
 
     bool create_video_shader_objects();

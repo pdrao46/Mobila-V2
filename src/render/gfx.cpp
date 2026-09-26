@@ -201,6 +201,10 @@ static bool create_device(Gfx* g, i32 adapter_index) {
         if (FAILED(hr)) { MOB_ERROR("DXGI: CreateDXGIFactory1 failed 0x%08X", (u32)hr); return false; }
     }
     g->factory = factory;
+    // IDXGIFactory5 exposes the capability queries this renderer needs
+    // (tearing support, WARP enumeration). It is optional: on very old systems
+    // the renderer keeps working without those swaps.
+    if (FAILED(factory->QueryInterface(__uuidof(IDXGIFactory5), (void**)&g->factory5))) g->factory5 = nullptr;
 
     // ---- adapter
     IDXGIAdapter1* chosen = nullptr;
@@ -224,8 +228,9 @@ static bool create_device(Gfx* g, i32 adapter_index) {
     }
     if (!chosen) {
         MOB_WARN("DXGI: no hardware adapter, falling back to WARP");
-        hr = factory->EnumWarpAdapter(__uuidof(IDXGIAdapter1), (void**)&chosen);
-        if (FAILED(hr)) { MOB_ERROR("DXGI: WARP unavailable"); return false; }
+        hr = g->factory5 ? g->factory5->EnumWarpAdapter(__uuidof(IDXGIAdapter1), (void**)&chosen)
+                         : factory->EnumAdapters1(0, &chosen);
+        if (FAILED(hr) || !chosen) { MOB_ERROR("DXGI: no adapter available"); return false; }
     }
     g->adapter = chosen;
     DXGI_ADAPTER_DESC1 adesc{};
@@ -290,7 +295,8 @@ static bool create_swapchain(Gfx* g, HWND hwnd, u32 w, u32 h, bool allow_tearing
     d.Flags       = 0;
 
     BOOL tear = FALSE;
-    if (allow_tearing && g->factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tear, sizeof(tear)) == S_OK && tear) {
+    if (allow_tearing && g->factory5 &&
+        g->factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tear, sizeof(tear)) == S_OK && tear) {
         d.Flags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
         g->tearing_supported = true;
     }
@@ -310,11 +316,20 @@ static bool create_swapchain(Gfx* g, HWND hwnd, u32 w, u32 h, bool allow_tearing
     g->swap = sc;
     g->buffer_count = d.BufferCount;
 
-    hr = sc->SetMaximumFrameLatency(1);
-    if (SUCCEEDED(hr)) {
-        g->frame_latency_handle = sc->GetFrameLatencyWaitableObject();
-        g->waitable_supported = g->frame_latency_handle != nullptr;
+    // Frame latency control lives on IDXGISwapChain2 (Windows 8.1+). Setting it
+    // to 1 is what guarantees the render loop can never be more than one frame
+    // behind the CPU - the single most effective latency reduction in the
+    // presentation stage.
+    if (SUCCEEDED(sc->QueryInterface(__uuidof(IDXGISwapChain2), (void**)&g->swap2)) && g->swap2) {
+        hr = g->swap2->SetMaximumFrameLatency(1);
+        if (SUCCEEDED(hr)) {
+            g->frame_latency_handle = g->swap2->GetFrameLatencyWaitableObject();
+            g->waitable_supported = g->frame_latency_handle != nullptr;
+        }
     } else {
+        hr = E_NOINTERFACE;
+    }
+    if (FAILED(hr)) {
         MOB_WARN("SetMaximumFrameLatency(1) unsupported (0x%08X) - using 2 frames in flight", (u32)hr);
     }
     return true;
@@ -383,6 +398,7 @@ static bool create_pipeline(Gfx* g) {
     cb.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cb.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     g->dev->CreateBuffer(&cb, nullptr, &g->cb_frame);
+    g->dev->CreateBuffer(&cb, nullptr, &g->cb_video);
 
     // geometry: one map per frame, WRITE_DISCARD, no ring buffer juggling
     g->vb_capacity = 64 * 1024;               // vertices
@@ -475,7 +491,7 @@ void Gfx::shutdown() {
 #define REL(x) if (x) { x->Release(); x = nullptr; }
     REL(rtv); REL(swap); REL(adapter); REL(factory);
     REL(vs_ui); REL(ps_ui); REL(ps_shape); REL(ps_video);
-    REL(layout_ui); REL(cb_frame);
+    REL(layout_ui); REL(cb_frame); REL(cb_video);
     REL(vb); REL(ib);
     REL(samp_linear); REL(samp_point); REL(blend_alpha); REL(blend_none);
     REL(rast_ui); REL(rast_video); REL(depth_none);
@@ -497,7 +513,7 @@ bool Gfx::resize(u32 w, u32 h) {
         MOB_WARN("ResizeBuffers %ux%u failed", w, h);
         return false;
     }
-    swap->SetMaximumFrameLatency(1);
+    if (swap2) swap2->SetMaximumFrameLatency(1);
     if (!create_backbuffer(this)) return false;
     MOB_DEBUG("swapchain resized to %ux%u", width, height);
     return true;
@@ -582,6 +598,23 @@ void Gfx::begin_frame(const f32 clear[4]) {
     }
     ctx->VSSetConstantBuffers(0, 1, &cb_frame);
     ctx->PSSetConstantBuffers(0, 1, &cb_frame);
+}
+
+// (VideoCB is declared once, next to the shader source.)
+void Gfx::set_video_params(f32 uv_scale_x, f32 uv_scale_y, f32 uv_off_x, f32 uv_off_y,
+                           f32 contrast, f32 saturation, f32 brightness, f32 sharpness) {
+    if (!cb_video || !ctx) return;
+    D3D11_MAPPED_SUBRESOURCE m{};
+    if (SUCCEEDED(ctx->Map(cb_video, 0, D3D11_MAP_WRITE_DISCARD, 0, &m))) {
+        VideoCB* v = (VideoCB*)m.pData;
+        v->uv_scale[0] = uv_scale_x; v->uv_scale[1] = uv_scale_y;
+        v->uv_offset[0] = uv_off_x;  v->uv_offset[1] = uv_off_y;
+        v->contrast = contrast;
+        v->saturation = saturation;
+        v->brightness = brightness;
+        v->sharpness = sharpness;
+        ctx->Unmap(cb_video, 0);
+    }
 }
 
 void Gfx::set_viewport(f32 x, f32 y, f32 w, f32 h) {

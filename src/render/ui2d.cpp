@@ -7,11 +7,13 @@
 
 namespace mob {
 
+f32 g_ui_scale = 1.0f;
+
 static f32 snap(f32 v) { return (f32)(i32)(v + 0.5f); }
 
 bool Ui2D::init(Gfx* g, TextRenderer* t) {
     gfx = g;
-    text = t;
+    txt = t;
     arena.init(2 << 20);
     cmds.init(&arena, 512);
 
@@ -37,6 +39,7 @@ void Ui2D::shutdown() {
 
 void Ui2D::begin(u32 w, u32 h) {
     width = w; height = h;
+    g_ui_scale = dpi;
     vcount = icount = 0;
     cmds.reset();
     triangles = 0; draw_calls = 0;
@@ -320,7 +323,7 @@ void Ui2D::icon(IconId id, f32 x, f32 y, f32 size, Col c, f32 thickness) {
                          x + pts[i].x * s, y + pts[i].y * s,
                          x + pts[i + 1].x * s, y + pts[i + 1].y * s, c);
             }
-        } else if (seg.kind == ICON_SEG_DOT) {
+        } else if (seg.kind == 2) {
             for (u16 i = 0; i < seg.point_count; ++i)
                 circle(x + pts[i].x * s, y + pts[i].y * s, mob_max(pts[i].x * 0 + tk * 0.9f, 1.0f), c);
         }
@@ -333,9 +336,9 @@ void Ui2D::icon_centered(IconId id, f32 cx, f32 cy, f32 size, Col c, f32 thickne
 
 // -------------------------------------------------------------------- text
 void Ui2D::text(Str s, f32 x, f32 y, FontId font, Col c, TextAlign align) {
-    if (!text || !text->ok || s.empty()) return;
-    Font& f = text->fonts[font];
-    f32 w = text->measure(font, s);
+    if (!txt || !txt->ok || s.empty()) return;
+    Font& f = txt->fonts[font];
+    f32 w = txt->measure(font, s);
     if (align == ALIGN_CENTER) x -= w * 0.5f;
     else if (align == ALIGN_RIGHT) x -= w;
     x = snap(x);
@@ -347,7 +350,7 @@ void Ui2D::text(Str s, f32 x, f32 y, FontId font, Col c, TextAlign align) {
         if (!cp) break;
         if (cp == '\n') { pen = x; top += f.line_height; continue; }
         if (cp == '\r') continue;
-        Glyph* g = text->glyph(font, cp);
+        Glyph* g = txt->glyph(font, cp);
         if (!g || !g->valid) continue;
         if (g->w > 0.5f && g->h > 0.5f) {
             set_texture(f.srv, false, true);
@@ -370,22 +373,22 @@ void Ui2D::text(Str s, f32 x, f32 y, FontId font, Col c, TextAlign align) {
 }
 
 void Ui2D::text_bg(Str s, f32 x, f32 y, FontId font, Col fg, Col bg, f32 pad_x, f32 pad_y, f32 radius) {
-    f32 w = text->measure(font, s);
-    f32 h = text->line_height(font);
+    f32 w = txt->measure(font, s);
+    f32 h = txt->line_height(font);
     rrect(x, y, w + pad_x * 2, h + pad_y * 2, radius, bg);
     text(s, x + pad_x, y + pad_y, font, fg);
 }
 
 void Ui2D::text_ellipsis(Str s, f32 x, f32 y, f32 max_w, FontId font, Col c, TextAlign align) {
-    if (!text || !text->ok) return;
-    if (text->measure(font, s) <= max_w) { text(s, x, y, font, c, align); return; }
-    f32 dots = text->measure(font, Str("..."));
+    if (!txt || !txt->ok) return;
+    if (txt->measure(font, s) <= max_w) { text(s, x, y, font, c, align); return; }
+    f32 dots = txt->measure(font, Str("..."));
     f32 acc = 0;
     u32 i = 0, end = 0;
     while (i < s.n) {
         u32 start = i;
         u32 cp = TextRenderer::next_codepoint(s, &i);
-        f32 adv = text->advance(font, cp);
+        f32 adv = txt->advance(font, cp);
         if (acc + adv + dots > max_w) { end = start; break; }
         acc += adv;
         end = i;
@@ -396,7 +399,7 @@ void Ui2D::text_ellipsis(Str s, f32 x, f32 y, f32 max_w, FontId font, Col c, Tex
 }
 
 void Ui2D::text_wrapped(Str s, f32 x, f32 y, f32 max_w, f32 line_h, FontId font, Col c, u32 max_lines) {
-    if (!text || !text->ok) return;
+    if (!txt || !txt->ok) return;
     u32 line_start = 0;
     u32 i = 0;
     u32 lines = 0;
@@ -413,14 +416,14 @@ void Ui2D::text_wrapped(Str s, f32 x, f32 y, f32 max_w, f32 line_h, FontId font,
             last_space = 0xFFFFFFFFu;
             continue;
         }
-        f32 adv = text->advance(font, cp);
+        f32 adv = txt->advance(font, cp);
         if (cp == ' ') last_space = start;
         if (acc + adv > max_w && start > line_start) {
             u32 brk = (last_space != 0xFFFFFFFFu && last_space > line_start) ? last_space : start;
             text(s.sub(line_start, brk - line_start), cur_x, cur_y, font, c);
             cur_y += line_h; lines++;
             if (lines >= max_lines) {
-                text(Str("..."), cur_x + text->measure(font, s.sub(line_start, brk - line_start)), cur_y - line_h, font, c);
+                text(Str("..."), cur_x + txt->measure(font, s.sub(line_start, brk - line_start)), cur_y - line_h, font, c);
                 return;
             }
             cur_x = x; acc = 0;
@@ -465,6 +468,60 @@ void Ui2D::end() {
         draw_calls++;
     }
     gfx->set_scissor(0, 0, (i32)width, (i32)height);
+}
+
+
+// ---------------------------------------------------------------------------
+// Video frame draw. Deliberately "wide": one quad, two texture bindings, one
+// constant buffer, one draw call, no intermediate render target and no copy of
+// anything. The pixel shader converts NV12 to RGB in the same pass that scales
+// the image, which is why this path costs one draw call per frame.
+// ---------------------------------------------------------------------------
+void Ui2D::draw_video(ID3D11ShaderResourceView* srv_y, ID3D11ShaderResourceView* srv_uv,
+                      f32 x, f32 y, f32 w, f32 h,
+                      f32 u0, f32 v0, f32 u1, f32 v1, f32 sharpness) {
+    if (!gfx || !gfx->ctx || !srv_y) return;
+    // Whatever was batched so far sits behind the video; emit it now.
+    flush_cmd();
+    if (!vbase) return;
+
+    u16* idx = nullptr;
+    u32 first = 0;
+    UiVert* v = verts(6, &idx, &first);
+    if (!v) return;
+
+    const f32 x1 = x + w, y1 = y + h;
+    const f32 px[6] = { x,  x1, x1, x,  x1, x  };
+    const f32 py[6] = { y,  y,  y1, y,  y1, y1 };
+    const f32 pu[6] = { u0, u1, u1, u0, u1, u0 };
+    const f32 pv[6] = { v0, v0, v1, v0, v1, v1 };
+    for (u32 i = 0; i < 6; ++i) {
+        UiVert& o = v[i];
+        o.x = px[i]; o.y = py[i];
+        o.u = pu[i]; o.v = pv[i];
+        o.r = 1; o.g = 1; o.b = 1; o.a = 1;
+        o.hw = 0; o.hh = 0; o.radius = 0; o.border = 0;
+    }
+
+    ID3D11DeviceContext* ctx = gfx->ctx;
+    gfx->set_scissor((i32)x, (i32)y, (i32)w, (i32)h);
+    ID3D11ShaderResourceView* srvs[2] = { srv_y, srv_uv };
+    ctx->PSSetShaderResources(0, 2, srvs);
+    ctx->PSSetSamplers(0, 1, &gfx->samp_linear);
+    ctx->PSSetConstantBuffers(0, 1, &gfx->cb_video);
+    ctx->PSSetShader(gfx->ps_video, nullptr, 0);
+    ctx->OMSetBlendState(gfx->blend_none, nullptr, 0xFFFFFFFF);
+    ctx->RSSetState(gfx->rast_video);
+    ctx->DrawIndexed(6, first, 0);
+    draw_calls++;
+
+    // Restore the UI state for everything that follows (overlay, HUD, menus).
+    gfx->begin_ui_pass(true);
+    ctx->PSSetConstantBuffers(0, 1, &gfx->cb_frame);
+    gfx->set_scissor((i32)clip_rect.x, (i32)clip_rect.y, (i32)clip_rect.w, (i32)clip_rect.h);
+    cmd_start_index = icount;      // the video quad is already submitted
+    cmd_tex = nullptr;
+    cmd_shape = true;
 }
 
 } // namespace mob

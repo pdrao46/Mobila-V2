@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 
 final class CodecMath {
 
+    static final int PACKET_NONE         = 0;
     static final int PACKET_VIDEO_CONFIG = 1;
     static final int PACKET_VIDEO_FRAME  = 2;
     static final int PACKET_FRAME_META   = 3;

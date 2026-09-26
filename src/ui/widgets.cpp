@@ -2,6 +2,7 @@
 //  MOBILADOR - src/ui/widgets.cpp
 // ============================================================================
 #include "widgets.h"
+#include <new>      // placement new for the animation map
 #include <stdio.h>
 #include <math.h>
 
@@ -36,7 +37,7 @@ void WidgetCtx::begin_frame(f32 dt, u64 t_us) {
     now_ms = (f32)(t_us / 1000ull);
     hot = hot_next;
     hot_next = 0;
-    if (!in.down[MB_LEFT]) active = 0;
+    if (!in.down[MOB_MB_LEFT]) active = 0;
     if (game_mode) {
         // Game Mode: no transitions, no pulsing. Every animation resolves
         // immediately so nothing keeps re-drawing on the CPU.
@@ -138,10 +139,10 @@ BtnResult button(WidgetCtx* c, Str label, Rect r, BtnKind kind, IconId icon, boo
     if (hovered) c->hot_next = id;
     f32 hover = c->anim(w_id2(Str("hov"), (int)(id & 0x7FFFFFFF)), hovered ? 1.0f : 0.0f, 110.0f);
     bool pressed_now = false;
-    if (hovered && c->in.pressed[MB_LEFT]) c->active = id;
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) c->active = id;
     if (c->active == id) {
-        if (c->in.released[MB_LEFT]) { res.clicked = true; c->active = 0; }
-        else if (c->in.down[MB_LEFT]) pressed_now = true;
+        if (c->in.released[MOB_MB_LEFT]) { res.clicked = true; c->active = 0; }
+        else if (c->in.down[MOB_MB_LEFT]) pressed_now = true;
     }
     res.hovered = hovered;
     res.held = pressed_now;
@@ -185,10 +186,10 @@ BtnResult button_icon(WidgetCtx* c, IconId icon, Rect r, const char* tip, bool e
     if (hovered) c->hot_next = id;
     f32 hover = c->anim(id, hovered ? 1.0f : 0.0f, 110.0f);
     bool pressed_now = false;
-    if (hovered && c->in.pressed[MB_LEFT]) c->active = id;
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) c->active = id;
     if (c->active == id) {
-        if (c->in.released[MB_LEFT]) { res.clicked = true; c->active = 0; }
-        else if (c->in.down[MB_LEFT]) pressed_now = true;
+        if (c->in.released[MOB_MB_LEFT]) { res.clicked = true; c->active = 0; }
+        else if (c->in.down[MOB_MB_LEFT]) pressed_now = true;
     }
     Theme* th = c->theme;
     if (hover > 0.01f || pressed_now) {
@@ -209,10 +210,10 @@ BtnResult button_big(WidgetCtx* c, Str label, IconId icon, Rect r, BtnKind kind,
     if (hovered) c->hot_next = id;
     f32 hover = c->anim(id, hovered ? 1.0f : 0.0f, 130.0f);
     bool pressed_now = false;
-    if (hovered && c->in.pressed[MB_LEFT]) c->active = id;
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) c->active = id;
     if (c->active == id) {
-        if (c->in.released[MB_LEFT]) { res.clicked = true; c->active = 0; }
-        else if (c->in.down[MB_LEFT]) pressed_now = true;
+        if (c->in.released[MOB_MB_LEFT]) { res.clicked = true; c->active = 0; }
+        else if (c->in.down[MOB_MB_LEFT]) pressed_now = true;
     }
     res.hovered = hovered;
     Theme* th = c->theme;
@@ -257,7 +258,7 @@ bool toggle(WidgetCtx* c, Str label, Rect r, bool* value, bool enabled) {
     bool hovered = enabled && r.contains(c->in.mouse_x, c->in.mouse_y);
     if (hovered) c->hot_next = id;
     bool changed = false;
-    if (hovered && c->in.pressed[MB_LEFT] && enabled) { *value = !*value; changed = true; }
+    if (hovered && c->in.pressed[MOB_MB_LEFT] && enabled) { *value = !*value; changed = true; }
     f32 k = c->anim(id, *value ? 1.0f : 0.0f, 130.0f);
     f32 hover = c->anim(w_id2(Str("tgh"), (int)(id & 0x7FFFFFFF)), hovered ? 1.0f : 0.0f, 110.0f);
 
@@ -294,7 +295,7 @@ bool segmented(WidgetCtx* c, Str label, Rect r, const char* const* items, u32 co
         u32 id = w_id2(label, (int)i);
         bool hovered = sr.contains(c->in.mouse_x, c->in.mouse_y);
         if (hovered) c->hot_next = id;
-        if (hovered && c->in.pressed[MB_LEFT]) { if (*index != i) changed = true; *index = i; }
+        if (hovered && c->in.pressed[MOB_MB_LEFT]) { if (*index != i) changed = true; *index = i; }
         bool sel = (*index == i);
         Col fg = sel ? th->accent.readable_on() : th->text_dim;
         c->ui->text(Str(items[i]), sr.cx(), sr.y + (sr.h - c->ui->line_h(FONT_LABEL)) * 0.5f,
@@ -321,7 +322,7 @@ bool dropdown(WidgetCtx* c, Str label, Rect r, const char* const* items, u32 cou
     c->ui->icon(ICON_CHEVRON_DOWN, r.r() - c->ui->sp(24), r.cy() - c->ui->sp(7), c->ui->sp(14),
                 open ? th->accent : th->text_faint, open ? 0.0f : 1.7f);
 
-    if (hovered && c->in.pressed[MB_LEFT]) {
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) {
         c->open_dropdown_id = open ? 0 : id;
         open = !open;
     }
@@ -338,7 +339,7 @@ bool dropdown(WidgetCtx* c, Str label, Rect r, const char* const* items, u32 cou
             bool ih = ir.contains(c->in.mouse_x, c->in.mouse_y);
             if (ih) {
                 c->ui->rrect(ir.x, ir.y, ir.w, ir.h, c->ui->sp(4), th->surface_3);
-                if (c->in.pressed[MB_LEFT]) {
+                if (c->in.pressed[MOB_MB_LEFT]) {
                     if (*index != i) changed = true;
                     *index = i;
                     c->open_dropdown_id = 0;
@@ -355,7 +356,7 @@ bool dropdown(WidgetCtx* c, Str label, Rect r, const char* const* items, u32 cou
             }
         }
         // click outside closes
-        if (c->in.pressed[MB_LEFT] && !lr.contains(c->in.mouse_x, c->in.mouse_y) && !hovered)
+        if (c->in.pressed[MOB_MB_LEFT] && !lr.contains(c->in.mouse_x, c->in.mouse_y) && !hovered)
             c->open_dropdown_id = 0;
     }
     return changed;
@@ -367,7 +368,7 @@ bool slider(WidgetCtx* c, Str label, Rect r, f32* value, f32 mn, f32 mx, f32 ste
     bool hovered = enabled && r.contains(c->in.mouse_x, c->in.mouse_y);
     if (hovered) c->hot_next = id;
     bool changed = false;
-    if (hovered && c->in.pressed[MB_LEFT]) c->active = id;
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) c->active = id;
     f32 track_y = r.cy() - c->ui->sp(2);
     f32 track_h = c->ui->sp(4);
     f32 knob_r = c->ui->sp(7);
@@ -408,7 +409,7 @@ bool checkbox(WidgetCtx* c, Str label, Rect r, bool* value) {
     bool hovered = r.contains(c->in.mouse_x, c->in.mouse_y);
     if (hovered) c->hot_next = id;
     bool changed = false;
-    if (hovered && c->in.pressed[MB_LEFT]) { *value = !*value; changed = true; }
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) { *value = !*value; changed = true; }
     f32 k = c->anim(id, *value ? 1.0f : 0.0f, 130.0f);
     f32 box = c->ui->sp(16);
     Rect br{ r.x, r.y + (r.h - box) * 0.5f, box, box };
@@ -430,7 +431,7 @@ bool text_field(WidgetCtx* c, Str label, Rect r, TextFieldState* st, Str placeho
     bool hovered = r.contains(c->in.mouse_x, c->in.mouse_y);
     if (hovered) c->hot_next = id;
     bool focused = (c->focus == id);
-    if (c->in.pressed[MB_LEFT]) {
+    if (c->in.pressed[MOB_MB_LEFT]) {
         if (hovered) c->focus = id;
         else if (focused) c->focus = 0;
     }
@@ -497,7 +498,7 @@ bool keybind_field(WidgetCtx* c, Str label, Rect r, u32* vk, bool* waiting) {
     u32 id = w_id(label);
     bool hovered = r.contains(c->in.mouse_x, c->in.mouse_y);
     if (hovered) c->hot_next = id;
-    if (hovered && c->in.pressed[MB_LEFT]) *waiting = true;
+    if (hovered && c->in.pressed[MOB_MB_LEFT]) *waiting = true;
     bool changed = false;
     if (*waiting) {
         // One-shot: the App feeds the pressed key through input.text_input and
@@ -669,7 +670,7 @@ bool list_row(WidgetCtx* c, Str text, Str sub, Rect r, bool selected, IconId ico
     u32 id = w_id(text);
     bool hovered = r.contains(c->in.mouse_x, c->in.mouse_y);
     if (hovered) c->hot_next = id;
-    bool clicked = hovered && c->in.pressed[MB_LEFT];
+    bool clicked = hovered && c->in.pressed[MOB_MB_LEFT];
     f32 hv = c->anim(id, (hovered || selected) ? 1.0f : 0.0f, 120.0f);
     if (hv > 0.01f) c->ui->rrect(r.x, r.y, r.w, r.h, c->ui->sp(5),
                                  (selected ? th->accent.with_a(0.14f) : th->surface_3.with_a(0.7f * hv)));

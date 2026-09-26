@@ -32,6 +32,12 @@
 
 namespace mob {
 
+// Ring size of every graph buffer. Defined here (the owner of the buffers) and
+// reused by the widget layer.
+#ifndef MOB_GRAPH_RING
+#define MOB_GRAPH_RING 1024
+#endif
+
 enum MetricId : int {
     MET_CAPTURE_US = 0,
     MET_ENCODE_US,
@@ -174,6 +180,11 @@ struct Sampler {
     bool benchmark_running() const { return benchmark_active; }
     void benchmark_push_phase(f32 avg_latency_us, f32 avg_fps);
 };
+
+// Objective comparison ladder used by MOBILADOR BENCHMARK: each step is a real
+// configuration the session is switched to, never a simulated measurement.
+const char* bench_step_info(u32 index, u32* w, u32* h, u32* fps, u32* bitrate, const char** codec);
+u32 bench_step_count();
 
 // Session timer helper for the GAME SESSION readout (hh:mm:ss).
 void format_duration(u64 us, char* out, u32 out_cap);

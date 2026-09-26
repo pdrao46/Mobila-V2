@@ -1,0 +1,43 @@
+// ============================================================================
+//  MOBILADOR - assets/mobilador.rc
+//  Windows resources. Compiled by the build script (zig rc / windres) and
+//  linked into the executable so the taskbar, Alt+Tab and Explorer all show the
+//  product icon instead of a generic one.
+// ============================================================================
+
+#include <windows.h>
+
+// Application icon: multi-resolution (16/32/48/64/128/256) so Windows picks the
+// right size for the taskbar, the Alt+Tab switcher and large-icon views.
+IDI_APPICON ICON "icon/mobilador.ico"
+
+// ---- version information -------------------------------------------------
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"                      // US English, Unicode
+        BEGIN
+            VALUE "CompanyName",      "Mobilador"
+            VALUE "FileDescription",  "MOBILADOR - espelhamento USB de baixa latencia para jogos"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "Mobilador"
+            VALUE "OriginalFilename", "Mobilador.exe"
+            VALUE "ProductName",      "MOBILADOR"
+            VALUE "ProductVersion",   "1.0.0"
+            VALUE "LegalCopyright",   "Mobilador"
+            VALUE "Comments",         "USB video + input transport. No key mapping: GG Mouse Pro 3 owns the mapping."
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

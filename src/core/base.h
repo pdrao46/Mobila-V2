@@ -44,6 +44,13 @@ typedef intptr_t  isize;
 #define MOB_VERSION_MINOR 0
 #define MOB_VERSION_PATCH 0
 #define MOB_VERSION_STR   "1.0.0"
+// Build stamp shown in SOBRE / DIAGNOSTICS. The build script injects the exact
+// time of the build (-DMOB_BUILD_STR=...) so a support report identifies the
+// binary without using __DATE__/__TIME__, which would make the build
+// irreproducible (and is rejected as an error by some toolchains).
+#ifndef MOB_BUILD_STR
+#define MOB_BUILD_STR     "dev"
+#endif
 #define MOB_PRODUCT_NAME  "Mobilador"
 #define MOB_ORG_NAME      "Mobilador"
 
@@ -109,6 +116,10 @@ MOB_INLINE bool operator!=(Str a, const char* b) { return !a.eq(Str(b)); }
 // declared early: needed by container templates below
 Str  str_dup(Arena* a, Str s);
 Str  str_fmt(Arena* a, const char* fmt, ...);
+// Formats into a per-thread rotating scratch buffer. Intended for building
+// short-lived strings that are handed straight to a writer - never for anything
+// that must outlive the statement.
+Str  str_fmt_temp(const char* fmt, ...);
 
 u64  str_to_u64(Str s, bool* ok = nullptr);
 i64  str_to_i64(Str s, bool* ok = nullptr);

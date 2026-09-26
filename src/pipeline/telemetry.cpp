@@ -2,6 +2,7 @@
 //  MOBILADOR - src/pipeline/telemetry.cpp
 // ============================================================================
 #include "telemetry.h"
+#include <psapi.h>      // GetProcessMemoryInfo / PROCESS_MEMORY_COUNTERS_EX
 #include "../core/log.h"
 #include <algorithm>
 #include <math.h>
@@ -246,7 +247,7 @@ static const struct { const char* label; u32 w, h; u32 fps; u32 bitrate; const c
     { "1440p60 - 20 Mbps  H.265", 2560, 1440, 60, 20000, "H.265" },
 };
 const u32 kBenchStepCount = sizeof(kBenchSteps) / sizeof(kBenchSteps[0]);
-extern const void* bench_step_info(u32 i, u32* w, u32* h, u32* fps, u32* bitrate, const char** codec) {
+const char* bench_step_info(u32 i, u32* w, u32* h, u32* fps, u32* bitrate, const char** codec) {
     if (i >= kBenchStepCount) return nullptr;
     *w = kBenchSteps[i].w; *h = kBenchSteps[i].h; *fps = kBenchSteps[i].fps;
     *bitrate = kBenchSteps[i].bitrate; *codec = kBenchSteps[i].codec;
