@@ -47,6 +47,7 @@ void Ui2D::begin(u32 w, u32 h) {
     clip_rect = Rect{ 0, 0, (f32)w, (f32)h };
     cmd_tex = nullptr;
     cmd_shape = true;
+    cmd_coverage = false;
     cmd_start_index = 0;
 
     D3D11_MAPPED_SUBRESOURCE mv{}, mi{};
@@ -68,16 +69,18 @@ void Ui2D::flush_cmd() {
         c.index_count = icount - cmd_start_index;
         c.shape = cmd_shape;
         c.linear_filter = cmd_linear;
+        c.coverage = cmd_coverage;
     }
     cmd_start_index = icount;
 }
 
-void Ui2D::set_texture(ID3D11ShaderResourceView* srv, bool shape, bool linear) {
-    if (srv == cmd_tex && shape == cmd_shape && linear == cmd_linear) return;
+void Ui2D::set_texture(ID3D11ShaderResourceView* srv, bool shape, bool linear, bool coverage) {
+    if (srv == cmd_tex && shape == cmd_shape && linear == cmd_linear && coverage == cmd_coverage) return;
     flush_cmd();
     cmd_tex = srv;
     cmd_shape = shape;
     cmd_linear = linear;
+    cmd_coverage = coverage;
 }
 
 void Ui2D::push_clip(f32 x, f32 y, f32 w, f32 h) {
@@ -106,7 +109,7 @@ UiVert* Ui2D::verts(u32 n, u16** idx, u32* first_index) {
         // Extremely dense frames (a long graph plus a full screen of text) can
         // overflow; flush and continue rather than dropping the frame.
         flush_cmd();
-        set_texture(nullptr, cmd_shape, cmd_linear);
+        set_texture(nullptr, cmd_shape, cmd_linear, cmd_coverage);
         return nullptr;
     }
     *idx = ibase + icount;
@@ -353,7 +356,7 @@ void Ui2D::text(Str s, f32 x, f32 y, FontId font, Col c, TextAlign align) {
         Glyph* g = txt->glyph(font, cp);
         if (!g || !g->valid) continue;
         if (g->w > 0.5f && g->h > 0.5f) {
-            set_texture(f.srv, false, true);
+            set_texture(f.srv, false, true, /*coverage*/ true);
             u16* idx; u32 fi;
             // glyph quads are 4 verts / 6 indices; allocate 6 slots
             UiVert* v = verts(6, &idx, &fi);
@@ -463,7 +466,11 @@ void Ui2D::end() {
         gfx->ctx->PSSetShaderResources(0, 1, &srv);
         ID3D11SamplerState* s = c.linear_filter ? gfx->samp_linear : gfx->samp_point;
         gfx->ctx->PSSetSamplers(0, 1, &s);
-        gfx->ctx->PSSetShader(c.shape ? gfx->ps_shape : gfx->ps_ui, nullptr, 0);
+        // Shapes use the analytic shader. Everything else is textured: the
+        // glyph atlas carries coverage in .r (R8) while images carry colour and
+        // alpha (ARGB), and the two need different maths.
+        ID3D11PixelShader* ps = c.shape ? gfx->ps_shape : (c.coverage ? gfx->ps_text : gfx->ps_ui);
+        gfx->ctx->PSSetShader(ps, nullptr, 0);
         gfx->ctx->DrawIndexed(c.index_count, c.first_index, 0);
         draw_calls++;
     }

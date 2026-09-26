@@ -3,16 +3,16 @@
 O instalador **não** fica no código-fonte — ele é um artefacto binário construído pelo
 pipeline deste repositório. Está publicado aqui mesmo, nesta pasta:
 
-## ➡️ [`release/Mobilador-Setup-1.0.1.exe`](release/Mobilador-Setup-1.0.1.exe) — 41,9 MB
+## ➡️ [`release/Mobilador-Setup-1.0.2.exe`](release/Mobilador-Setup-1.0.2.exe) — 41,9 MB
 
 Clique no link acima **e depois no botão de download** que aparece no canto direito da
 página (ícone ⬇ *Download* / *Download raw file*).
 
 | | |
 |---|---|
-| **Ficheiro** | `Mobilador-Setup-1.0.1.exe` |
-| **Tamanho** | 43 903 793 bytes (41,9 MB) |
-| **SHA-256** | `3441e9ce5554f91431404d85f7640f4d3ee0a0eedbe6648fa1f0136e8bd76bab` |
+| **Ficheiro** | `Mobilador-Setup-1.0.2.exe` |
+| **Tamanho** | 43 905 329 bytes (41,9 MB) |
+| **SHA-256** | `1be80d74adff9f870c42ed6faa4e6540657a384bd210139f632de8473a67cec4` |
 | **Sistema** | Windows 10/11, 64 bits |
 | **Requisitos** | nenhum — sem Java, sem Visual C++, sem Android SDK, sem administrador |
 
@@ -23,6 +23,14 @@ página (ícone ⬇ *Download* / *Download raw file*).
 > automático (`tools/installer/test_payload.cpp`, roda em Linux) e o
 > instalador ainda tenta pastas alternativas se a padrão falhar.
 
+> **Versão 1.0.2** — corrige a renderização do aplicativo. O atlas de glifos é
+> criado como textura `R8_UNORM` (só cobertura), mas o pixel shader da UI lia
+> `.rgb` e `.a` como se fosse ARGB: cada glifo saía como um bloco sólido (só o
+> canal vermelho) com o padding preto opaco por cima. Agora existe um shader
+> `ps_text` próprio para texturas de cobertura. O `build.py` também passou a
+> recompilar quando um header muda (antes podia reutilizar objetos antigos e
+> produzir um binário que não correspondia ao código).
+
 ## Como instalar
 
 1. Baixe o `.exe`.
@@ -31,7 +39,7 @@ página (ícone ⬇ *Download* / *Download raw file*).
 3. Clique em **INSTALAR**.
 4. Abra o **Mobilador** e ligue a **Depuração USB** no telemóvel.
 
-> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.1.exe --portable [pasta]`
+> Modo portátil (extrai sem instalar): `Mobilador-Setup-1.0.2.exe --portable [pasta]`
 
 ## Guias
 

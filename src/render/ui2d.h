@@ -32,6 +32,7 @@ struct DrawCmd {
     u32 index_count;
     bool shape;
     bool linear_filter;
+    bool coverage;      // texture carries coverage in .r (glyph atlas), not colour
 };
 
 // Current UI scale, published for the layout macro used by the screens.
@@ -59,6 +60,7 @@ struct Ui2D {
     ID3D11ShaderResourceView* cmd_tex = nullptr;
     bool     cmd_shape = true;
     bool     cmd_linear = true;
+    bool     cmd_coverage = false;   // bound texture is a coverage (R8) atlas
     Rect     clip_rect{ 0, 0, 0, 0 };
     Rect     clip_stack[8];
     u32      clip_depth = 0;
@@ -126,7 +128,7 @@ struct Ui2D {
 
 private:
     void flush_cmd();
-    void set_texture(ID3D11ShaderResourceView* srv, bool shape, bool linear);
+    void set_texture(ID3D11ShaderResourceView* srv, bool shape, bool linear, bool coverage = false);
     UiVert* verts(u32 n, u16** idx, u32* first_index);
 };
 

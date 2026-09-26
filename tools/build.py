@@ -82,6 +82,8 @@ def sources():
                 out.append(os.path.join(base, f))
     return sorted(out)
 
+_newest_header = 0.0
+
 def flags_hash(args, toolchain):
     key = "|".join(sys.argv[1:]) + "|" + toolchain + "|" + str(args.debug)
     return hashlib.sha1(key.encode()).hexdigest()[:10]
@@ -89,10 +91,29 @@ def flags_hash(args, toolchain):
 def run(cmd, **kw):
     return subprocess.run(cmd, check=False, **kw)
 
+def newest_header(root):
+    """Mtime of the most recently touched header under src/.
+
+    Comparing only the .cpp mtime (the behaviour this replaces) silently keeps
+    stale objects when a header changes: adding a struct member, a #define or a
+    version string then produced a binary that did not match the source. The
+    rule is deliberately coarse: any header newer than an object rebuilds it.
+    """
+    newest = 0.0
+    for base, _dirs, files in os.walk(os.path.join(root, "src")):
+        for f in files:
+            if f.endswith((".h", ".hpp")):
+                t = os.path.getmtime(os.path.join(base, f))
+                if t > newest:
+                    newest = t
+    return newest
+
+
 def compile_one(job):
     src, obj, cmd, dep = job
     if os.path.exists(obj) and os.path.getmtime(obj) >= os.path.getmtime(src):
-        if dep is None or (os.path.exists(dep) and os.path.getmtime(obj) >= os.path.getmtime(dep)):
+        hdr_ok = os.path.getmtime(obj) >= _newest_header
+        if hdr_ok and (dep is None or (os.path.exists(dep) and os.path.getmtime(obj) >= os.path.getmtime(dep))):
             return (src, 0, "", True)
     os.makedirs(os.path.dirname(obj), exist_ok=True)
     r = subprocess.run(cmd + ["-c", src, "-o", obj], capture_output=True, text=True)
@@ -107,6 +128,9 @@ def main():
     ap.add_argument("--no-rc", action="store_true", help="skip resource compiler (icon/manifest)")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
+
+    global _newest_header
+    _newest_header = newest_header(ROOT)
 
     if args.clean:
         shutil.rmtree(BUILD, ignore_errors=True)

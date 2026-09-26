@@ -85,6 +85,7 @@ struct Gfx {
     ID3D11VertexShader*  vs_ui = nullptr;
     ID3D11PixelShader*   ps_ui = nullptr;
     ID3D11PixelShader*   ps_shape = nullptr;
+    ID3D11PixelShader*   ps_text = nullptr;   // R8 glyph atlas (coverage in .r)
     ID3D11PixelShader*   ps_video = nullptr;
     ID3D11InputLayout*   layout_ui = nullptr;
     ID3D11Buffer*        cb_frame = nullptr;      // per-frame constants (screen size, time, gamma)

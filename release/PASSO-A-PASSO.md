@@ -7,7 +7,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 ## ANTES DE COMEÇAR — o que você precisa
 
 - Um PC com **Windows 10 ou 11, 64 bits**.
-- Acesso ao ficheiro `Mobilador-Setup-1.0.1.exe` (41,9 MB).
+- Acesso ao ficheiro `Mobilador-Setup-1.0.2.exe` (41,9 MB).
 - **Não** precisa de: administrador, Java, Visual C++ Redistributable, Android SDK,
   iTunes, ou qualquer driver extra.
 
@@ -15,7 +15,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 1 — Baixar o instalador para o PC
 
-1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.1.exe`
+1. No painel do Arena, abra o ficheiro `release/Mobilador-Setup-1.0.2.exe`
    (é o arquivo que está no visualizador de ficheiros).
 2. Clique em **Download** / **Baixar**.
 3. O Windows vai guardar em `C:\Users\<seu_nome>\Downloads`.
@@ -32,13 +32,13 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 2. Digite (troque o nome da pasta se não for Downloads):
 
    ```
-   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.1.exe" SHA256
+   certutil -hashfile "%USERPROFILE%\Downloads\Mobilador-Setup-1.0.2.exe" SHA256
    ```
 
 3. Compare a linha de números com esta:
 
    ```
-   3441e9ce5554f91431404d85f7640f4d3ee0a0eedbe6648fa1f0136e8bd76bab
+   1be80d74adff9f870c42ed6faa4e6540657a384bd210139f632de8473a67cec4
    ```
 
    Tem de ser **igual, carácter por carácter**. Se for diferente, o download
@@ -48,7 +48,7 @@ Guia do zero, na ordem. O que está em **negrito** é clique ou tecla.
 
 ## ETAPA 3 — Executar o instalador
 
-1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.1.exe`.
+1. Vá até `Downloads` e dê **duplo clique** em `Mobilador-Setup-1.0.2.exe`.
 2. O Windows vai mostrar a tela azul **"O Windows protegeu o seu PC"**
    (SmartScreen). Isso acontece porque o programa não tem assinatura digital
    paga — é normal em programas novos.
@@ -138,14 +138,14 @@ Ele remove tudo e pergunta se você quer apagar também os perfis salvos.
 Se quiser só usar sem deixar rastro no PC:
 
 ```
-Mobilador-Setup-1.0.1.exe --portable
+Mobilador-Setup-1.0.2.exe --portable
 ```
 
 Ele extrai tudo para `Mobilador\` ao lado do `.exe` e fecha — sem atalhos, sem
 registo, sem instalação. Para escolher a pasta:
 
 ```
-Mobilador-Setup-1.0.1.exe --portable D:\Mobila
+Mobilador-Setup-1.0.2.exe --portable D:\Mobila
 ```
 
 ---
@@ -161,6 +161,15 @@ Mobilador-Setup-1.0.1.exe --portable D:\Mobila
 | Desinstalador | `%LOCALAPPDATA%\Programs\Mobilador\Uninstall.exe` |
 
 ---
+
+## SE O APLICATIVO ABRIR COM A TELA BUGADA
+
+1. Dentro do app, pressione **F6** — ele salva uma captura em
+   `Documentos\Mobilador\captura-<data>-<hora>.bmp`.
+2. Envie essa captura junto com o log: `%LOCALAPPDATA%\Mobilador\logs\`,
+   o ficheiro `mobilador-<numero>.log` mais recente (a primeira linha dele diz
+   qual versão está a correr).
+3. Com esses dois ficheiros é possível ver exatamente o que está errado.
 
 ## PROBLEMAS COMUNS
 

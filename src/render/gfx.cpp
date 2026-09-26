@@ -62,12 +62,22 @@ VSOut vs_ui(VSIn i) {
     return o;
 }
 
-// Textured UI: glyph atlas (R8) or ARGB images.
+// Textured UI with an ARGB image: the texture carries colour and alpha.
 float4 ps_ui(VSOut i) : SV_Target {
     float4 t = u_tex.Sample(u_samp, i.uv);
     float3 rgb = i.col.rgb * t.rgb;
     float  a   = i.col.a * t.a;
     return float4(rgb, a);
+}
+
+// Glyph atlas: R8 coverage only. Sampling an R8 texture returns
+// (coverage, 0, 0, 1), so ps_ui turned every glyph quad into an opaque block:
+// rgb lost the green and blue channels (glyphs came out red) and a = 1 painted
+// the transparent padding as solid black. Here the colour comes from the vertex
+// and only the alpha is modulated by the coverage.
+float4 ps_text(VSOut i) : SV_Target {
+    float cov = u_tex.Sample(u_samp, i.uv).r;
+    return float4(i.col.rgb, i.col.a * cov);
 }
 
 // Vector shapes: analytic rounded-rect with border and 1px analytic AA.
@@ -381,6 +391,18 @@ static bool create_pipeline(Gfx* g) {
     g->dev->CreatePixelShader(psb->GetBufferPointer(), psb->GetBufferSize(), nullptr, &g->ps_shape);
     psb->Release();
 
+    // Glyph atlas shader: same vertex stage, coverage-driven alpha. Degrading
+    // to ps_ui (rather than refusing to start) keeps the window usable and
+    // leaves a precise line in the log if this ever stops compiling.
+    if (!gfx_compile(HLSL_UI, "ps_text", "ps_4_0", &psb, &err, &scratch)) {
+        MOB_ERROR("text pixel shader failed, falling back to ps_ui: %.*s", err.n, err.p);
+        g->ps_text = g->ps_ui;
+        g->ps_ui->AddRef();
+    } else {
+        g->dev->CreatePixelShader(psb->GetBufferPointer(), psb->GetBufferSize(), nullptr, &g->ps_text);
+        psb->Release();
+    }
+
     if (!gfx_compile(HLSL_VIDEO, "vs_video", "vs_4_0", &vsb, &err, &scratch)) {
         MOB_ERROR("video vertex shader failed: %.*s", err.n, err.p);
         scratch.shutdown(); return false;
@@ -578,7 +600,7 @@ void Gfx::shutdown() {
     if (frame_latency_handle) { CloseHandle(frame_latency_handle); frame_latency_handle = nullptr; }
 #define REL(x) if (x) { x->Release(); x = nullptr; }
     REL(rtv); REL(swap); REL(adapter); REL(factory);
-    REL(vs_ui); REL(ps_ui); REL(ps_shape); REL(ps_video);
+    REL(vs_ui); REL(ps_ui); REL(ps_shape); REL(ps_text); REL(ps_video);
     REL(layout_ui); REL(cb_frame); REL(cb_video);
     REL(vb); REL(ib);
     REL(samp_linear); REL(samp_point); REL(blend_alpha); REL(blend_none);
